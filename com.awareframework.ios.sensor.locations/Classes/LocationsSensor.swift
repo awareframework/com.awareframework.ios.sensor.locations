@@ -87,9 +87,8 @@ public class LocationsSensor: AwareSensor{
         // var frequencyNetwork: Int = 300;
         // var minNetworkAccuracy: Int = 1500;
         
-        public override init() {}
-        
-        public init(_ config:Dictionary<String,Any>){
+        public override func set(config: Dictionary<String, Any>) {
+            super.set(config: config)
             if let status = config["statusGps"] as? Bool {
                 statusGps = status
             }
@@ -117,7 +116,7 @@ public class LocationsSensor: AwareSensor{
         }
     }
     
-    override convenience init(){
+    public override convenience init(){
         self.init(LocationsSensor.Config())
     }
     

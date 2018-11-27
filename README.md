@@ -111,7 +111,7 @@ locationSensor?.stop()
 class Observer:LocationsObserver {
     func onLocationChanged(data: LocationsData) {
     // your code here
-}
+    }
 }
 ```
 

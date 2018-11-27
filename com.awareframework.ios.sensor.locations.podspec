@@ -9,7 +9,7 @@
 Pod::Spec.new do |s|
 s.name             = 'com.awareframework.ios.sensor.locations'
 s.version          = '0.1.5'
-s.summary          = 'A short description of com.awareframework.ios.sensor.locations.'
+s.summary          = 'A Location Sensor Module for AWARE Framework'
 
 # This description is used to generate tags and improve search results.
 #   * Think: What does it do? Why did you write it? What is the focus?
@@ -18,7 +18,7 @@ s.summary          = 'A short description of com.awareframework.ios.sensor.locat
 #   * Finally, don't worry about the indent, CocoaPods strips it!
 
 s.description      = <<-DESC
-TODO: Add long description of the pod here.
+The locations sensor provides the best location estimate for the users’ current location, automatically. The location data is provided by [Core Location](https://developer.apple.com/documentation/corelocation).
 DESC
 
 s.homepage         = 'https://github.com/awareframework/com.awareframework.ios.sensor.locations'
@@ -30,6 +30,8 @@ s.source           = { :git => 'https://github.com/awareframework/com.awareframe
 
 s.ios.deployment_target = '10.0'
 
+s.swift_version = '4.2'
+
 s.source_files = 'com.awareframework.ios.sensor.locations/Classes/**/*'
 
 # s.resource_bundles = {
@@ -39,7 +41,6 @@ s.source_files = 'com.awareframework.ios.sensor.locations/Classes/**/*'
 # s.public_header_files = 'Pod/Classes/**/*.h'
 # s.frameworks = 'UIKit', 'MapKit'
 s.frameworks = 'CoreLocation'
-# s.dependency 'AFNetworking', '~> 2.3'
-s.dependency 'com.awareframework.ios.sensor.core'
+s.dependency 'com.awareframework.ios.sensor.core', '~>0.3.1'
 
 end
