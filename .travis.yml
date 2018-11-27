@@ -6,10 +6,21 @@ before_install:
 - gem install cocoapods
 - pod repo update
 - pod install --project-directory=Example
-
 script:
-  - set -o pipefail && xcodebuild test -enableCodeCoverage YES -workspace Example/com.awareframework.ios.sensor.locations.xcworkspace -scheme com.awareframework.ios.sensor.locations-Example -sdk iphonesimulator12.1 -destination OS=12.1,name="iPhone X" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_REQUIRED=NO -allowProvisioningUpdates | XCPRETTY
-  # - pod lib lint com.awareframework.ios.sensor.locations.podspec --allow-warnings
-
+- set -o pipefail && xcodebuild test -enableCodeCoverage YES -workspace Example/com.awareframework.ios.sensor.locations.xcworkspace
+  -scheme com.awareframework.ios.sensor.locations-Example -sdk iphonesimulator12.1
+  -destination OS=12.1,name="iPhone X" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_REQUIRED=NO
+  -allowProvisioningUpdates | XCPRETTY
 after_success:
 - echo 'success!'
+deploy:
+  provider: script
+  script: "./scripts/release.sh"
+  on:
+    tags: true
+env:
+  global:
+    secure: 2bDV5xvfXVOU0lHzGgXCabTIJFQ+TbXzhtevWFu3b+zRReBag6TYg505gWZy8YCuCMaq1YusmKAaRGjmKIfFKl9nor/GehTlkVH64Jrk9Weg6iWkc9OT2e10AEbeTTScQMF0E7175YdTihNwnIZzUOJrMyqftLSwUzy7bD5QcbkAPbAzlWywiELTyPTwXK1a2vmZWfF6DrATVi9h6IA4j382oHyYg9BdTEovG5qQAl+DpIhC/b5/h/gFAMK8PSGT0athoxtZaWl/jBb1jYmv5oiGii8TPGd601XyfaK9BpZ0YkR9ZKiV4z5JUvoP+IG1Xy8CiSjBv4PNs5nJ+OD9f/Qm1enzpLw0W93fNhEO1uHDMsZQZoCi3xUSMbbr2b6TCoBHEFVeqtFpxNAP1esmPyTX1NqZiFezTEzKe4GvYNp+qVpNCHD5+HDAmiGg+5ssrXjd8MKIG+P0XSXxRefi6CIQ8Ck5H4RgdfXYrOrYH3D+58DB+8vkyJk/7fj79N0SS+qGRvJfVDHFKzjH+wLgyEV11BgIA4GrHgn6/Y1mjfElAyv6jYdyR1PMFsA10cxdilqL8r+a36bLnIfSon4EYCiKd9UizMmXOQ0lQJWYdqLUv1pzyWT/GnWKUMymTrOiOXfhL7ZDsC1pBuWPkP/Ig2au/wroGHo6hNAliLRwE6k=
+notifications:
+  slack:
+    secure: y/hpMUhNUb15633S/MsnnDA8IQNWxH0WJE1sEZ7ZgGh8qnt/Sr8xYhS8NWUPRHcSiwgMCfxbgHLC3YGgy38s5tmFmWet9KNFY/L3fpxZHy6MEniB/ozxDga+/iboKXM1EJ9V87sdTB60mlDl1VOqkQyN6QOrdRe8a5NHzajB4Gje6nckoUZjT2SLRtK18pMshq5F0jnhO0dGhSyf2AtcPUmhHvfdajlLWB/cSXo/7gsuT2D0b26jE7XnxXtzwydwzc82RpDZdE25P457D2JpEsZRzPb5Y2hu2SmhACQcHV49c/SYD3r+37SLuTn3JyZTXzvcO8VWMpZpQ/XJ13GBvNwtmqcYD63i2aChGN0DL8eGoElXPGXTSb3I4TqoO1X/j7RN7+bnD9oX2kGc/AZVhhrotRv2v/Q1nBBAp8TQ3VwZaUjEYlx70atG7m48cwhj77mQdTSLTcbWSazrqZvjzXYYze9risgtShg3y+K2Mn96oEnJfRt4MUvzMswfL/RSJQYXZ9wiiwWo8f7o25sZAt1lYZYsrOkW/cd9NSa8HKVGfaofatF9nrflPDI0CrOS76Vptldnyn2Zxlo1QUXF4ya3wdfYgJoqJEEBo0NQGPAM0WWCiU9YVOof3LpAf2mTJ+mDknXj+Ri8DtBqa0aqN6kAq0OL6cNyaFmN6wdQXz0=

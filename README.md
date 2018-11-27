@@ -1,4 +1,4 @@
-# Aware Locations
+# AWARE: Locations
 
 [![CI Status](https://img.shields.io/travis/awareframework/com.awareframework.ios.sensor.locations.svg?style=flat)](https://travis-ci.org/awareframework/com.awareframework.ios.sensor.locations)
 [![Version](https://img.shields.io/cocoapods/v/com.awareframework.ios.sensor.locations.svg?style=flat)](https://cocoapods.org/pods/com.awareframework.ios.sensor.locations)
