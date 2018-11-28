@@ -206,7 +206,7 @@ public class LocationsSensor: AwareSensor{
     public override func sync(force: Bool = false) {
         if CONFIG.debug { print(LocationsSensor.TAG,"Start database sync") }
         if let enging = self.dbEngine {
-            enging.startSync(LocationsData.TABLE_NAME, DbSyncConfig().apply(closure: { config in
+            enging.startSync(LocationsData.TABLE_NAME, LocationsData.self, DbSyncConfig().apply(closure: { config in
                 config.debug = CONFIG.debug
             }))
         }
