@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "1010"
-   version = "1.3">
+   version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES">
@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "F465CFA64E5BA4C78496F2DFAF136F6B"
+               BlueprintIdentifier = "4E90C6A71AEB3859DA999CF7CE0B3852"
                BuildableName = "Networking.framework"
                BlueprintName = "Networking"
                ReferencedContainer = "container:Pods/Pods.xcodeproj">
@@ -56,7 +56,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "A115AB3CE73503259B95CF0E68542429"
+               BlueprintIdentifier = "1563A4867166BE165789A770A7D739AC"
                BuildableName = "Reachability.framework"
                BlueprintName = "ReachabilitySwift"
                ReferencedContainer = "container:Pods/Pods.xcodeproj">
@@ -70,7 +70,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "F72BB8D05EB321FFD2CFCB9E7CC16399"
+               BlueprintIdentifier = "BA1D7B1FAAF6A59FC1E04115498665B4"
                BuildableName = "Realm.framework"
                BlueprintName = "Realm"
                ReferencedContainer = "container:Pods/Pods.xcodeproj">
@@ -84,7 +84,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "04B5703669767736B340B24FBDAC6CF6"
+               BlueprintIdentifier = "9E83B02AAA6F4B4EE95CC07F9A34F14B"
                BuildableName = "RealmSwift.framework"
                BlueprintName = "RealmSwift"
                ReferencedContainer = "container:Pods/Pods.xcodeproj">
@@ -98,7 +98,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "21303293C52AB9A45971D0A789BD6715"
+               BlueprintIdentifier = "AA2ACC516C3150C071CEC7453438A076"
                BuildableName = "SwiftyJSON.framework"
                BlueprintName = "SwiftyJSON"
                ReferencedContainer = "container:Pods/Pods.xcodeproj">
@@ -112,7 +112,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "B66EDEC49F7E894F58545D32FE8E33AD"
+               BlueprintIdentifier = "D094B8B9EA6298096B66339461CF0D25"
                BuildableName = "com_awareframework_ios_sensor_core.framework"
                BlueprintName = "com.awareframework.ios.sensor.core"
                ReferencedContainer = "container:Pods/Pods.xcodeproj">
@@ -126,7 +126,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "FB041D25E97FAA1445CC7670EA2AA78B"
+               BlueprintIdentifier = "305F3EA5389E78C3DBCC3CD48EA380B7"
                BuildableName = "com_awareframework_ios_sensor_locations.framework"
                BlueprintName = "com.awareframework.ios.sensor.locations"
                ReferencedContainer = "container:Pods/Pods.xcodeproj">
@@ -166,7 +166,18 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      codeCoverageEnabled = "YES"
+      onlyGenerateCoverageForSpecifiedTargets = "YES"
       shouldUseLaunchSchemeArgsEnv = "YES">
+      <CodeCoverageTargets>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "305F3EA5389E78C3DBCC3CD48EA380B7"
+            BuildableName = "com_awareframework_ios_sensor_locations.framework"
+            BlueprintName = "com.awareframework.ios.sensor.locations"
+            ReferencedContainer = "container:Pods/Pods.xcodeproj">
+         </BuildableReference>
+      </CodeCoverageTargets>
       <Testables>
          <TestableReference
             skipped = "NO">
@@ -213,6 +224,10 @@
       </BuildableProductRunnable>
       <AdditionalOptions>
       </AdditionalOptions>
+      <LocationScenarioReference
+         identifier = "com.apple.dt.IDEFoundation.CurrentLocationScenarioIdentifier"
+         referenceType = "1">
+      </LocationScenarioReference>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
