@@ -134,6 +134,11 @@ public class LocationsSensor: AwareSensor{
         // var frequencyNetwork: Int = 300;
         // var minNetworkAccuracy: Int = 1500;
         
+        public override init() {
+            super.init()
+            dbPath = "aware_locations"
+        }
+        
         public override func set(config: Dictionary<String, Any>) {
             super.set(config: config)
             if let status = config["statusGps"] as? Bool {
@@ -480,6 +485,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
             data.speed     = location.speed
             data.verticalAccuracy = location.verticalAccuracy
             data.horizontalAccuracy = location.horizontalAccuracy
+            data.label = self.CONFIG.label
             if let floor = location.floor {
                 data.floor = floor.level as NSNumber
             }
@@ -504,6 +510,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
         data.longitude = visit.coordinate.longitude
         data.departure = Int64(visit.departureDate.timeIntervalSince1970 * 1000.0)
         data.arrival   = Int64(visit.arrivalDate.timeIntervalSince1970 * 1000.0)
+        data.label     = self.CONFIG.label
         
         let location = CLLocation.init(latitude: visit.coordinate.latitude, longitude: visit.coordinate.longitude)
         let geocoder = CLGeocoder.init()
@@ -557,6 +564,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
             data.latitude = location.coordinate.latitude
             data.longitude = location.coordinate.longitude
         }
+        data.label = self.CONFIG.label
         if let observer = self.CONFIG.sensorObserver {
             observer.onEnterRegion(data:data)
         }
@@ -574,6 +582,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
         let data = GeofenceData()
         data.onExit = true
         data.identifier = region.identifier
+        data.label = self.CONFIG.label
         if let location = manager.location {
             data.verticalAccuracy = location.verticalAccuracy
             data.horizontalAccuracy = location.horizontalAccuracy
