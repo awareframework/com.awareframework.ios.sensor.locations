@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
 s.name             = 'com.awareframework.ios.sensor.locations'
-  s.version       = '0.2.3'
+  s.version       = '0.4.0'
 s.summary          = 'A Location Sensor Module for AWARE Framework'
 
 # This description is used to generate tags and improve search results.
@@ -41,6 +41,6 @@ s.source_files = 'com.awareframework.ios.sensor.locations/Classes/**/*'
 # s.public_header_files = 'Pod/Classes/**/*.h'
 # s.frameworks = 'UIKit', 'MapKit'
 s.frameworks = 'CoreLocation'
-s.dependency 'com.awareframework.ios.sensor.core', '~>0.3.3'
+s.dependency 'com.awareframework.ios.sensor.core', '~>0.4.1'
 
 end
