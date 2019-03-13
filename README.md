@@ -22,7 +22,7 @@ pod 'com.awareframework.ios.sensor.locations'
 
 2. Import com.aware.ios.sensor.locations library into your source code.
 ```swift
-import com_awareframework_ios.sensor_locations
+import com_awareframework_ios_sensor_locations
 ```
 
 3. Open your project ( *.xcworkspace ) and add `NSLocationAlwaysAndWhenInUseUsageDescription` and `NSLocationWhenInUseUsageDescription` into Info.plist.
