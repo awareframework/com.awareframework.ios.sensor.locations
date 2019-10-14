@@ -15,7 +15,7 @@ public class LocationsData: AwareObject {
     @objc dynamic public var latitude:  Double = 0
     @objc dynamic public var longitude: Double = 0
     //open var course: CLLocationDirection { get }
-    @objc dynamic public var course:   Double = 0
+    @objc dynamic public var course:    Double = 0
     //open var speed: CLLocationSpeed { get }
     @objc dynamic public var speed:     Double = 0
     // open var altitude: CLLocationDistance { get }

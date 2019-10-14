@@ -22,6 +22,7 @@ class Tests: XCTestCase {
         #else
         
         class Observer:LocationsObserver {
+            func onHeadingChanged(data: HeadingData) {}
             weak var locationExpectation: XCTestExpectation?
             func onLocationChanged(data: LocationsData) {
                 locationExpectation?.fulfill()

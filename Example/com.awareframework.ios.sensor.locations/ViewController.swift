@@ -11,6 +11,7 @@ import com_awareframework_ios_sensor_locations
 
 class ViewController: UIViewController, LocationsObserver {
 
+
     var locationSensor:LocationsSensor? = nil
     
     @IBOutlet weak var location: UILabel!
@@ -29,7 +30,9 @@ class ViewController: UIViewController, LocationsObserver {
             config.debug = true
             config.saveAll = true
             config.statusGps = true
-            config.frequencyGps = 10
+            config.statusHeading = true
+            config.frequencyGps = 1
+            config.minGpsAccuracy = 0
             config.expirationTime = 30
             config.dbType = .REALM
             config.sensorObserver = self
@@ -56,6 +59,9 @@ class ViewController: UIViewController, LocationsObserver {
         self.visit.text = data.address
     }
     
+    func onHeadingChanged(data: HeadingData) {
+        
+    }
 
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
