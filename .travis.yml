@@ -8,8 +8,8 @@ before_install:
 - pod install --project-directory=Example
 script:
 - set -o pipefail && xcodebuild test -enableCodeCoverage YES -workspace Example/com.awareframework.ios.sensor.locations.xcworkspace
-  -scheme com.awareframework.ios.sensor.locations-Example -sdk iphonesimulator13.2
-  -destination OS=13.2,name="iPhone X" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_REQUIRED=NO
+  -scheme com.awareframework.ios.sensor.locations-Example -sdk iphonesimulator12.2
+  -destination OS=12.2,name="iPhone X" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_REQUIRED=NO
   -allowProvisioningUpdates | XCPRETTY
 deploy:
   provider: script
