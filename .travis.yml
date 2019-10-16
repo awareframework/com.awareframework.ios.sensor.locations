@@ -4,7 +4,7 @@ cache: cocoapods
 podfile: Example/Podfile
 before_install:
 - gem install cocoapods
-- pod repo update
+# - pod repo update
 - pod install --project-directory=Example
 script:
 - set -o pipefail && xcodebuild test -enableCodeCoverage YES -workspace Example/com.awareframework.ios.sensor.locations.xcworkspace

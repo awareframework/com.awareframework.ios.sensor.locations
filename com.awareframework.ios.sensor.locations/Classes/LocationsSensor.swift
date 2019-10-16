@@ -21,7 +21,7 @@ extension Notification.Name {
     public static let actionAwareLocationsExitRegion = Notification.Name(LocationsSensor.ACTION_AWARE_LOCATIONS_EXIT_REGION)
     
     public static let actionAwareLocationsVisit = Notification.Name(LocationsSensor.ACTION_AWARE_LOCATIONS_VISIT)
-    public static let actinoAwareLocationsHeadingChanged = Notification.Name(LocationsSensor.ACTION_AWARE_LOCATIONS_HEADING_CHANGED)
+    public static let actionAwareLocationsHeadingChanged = Notification.Name(LocationsSensor.ACTION_AWARE_LOCATIONS_HEADING_CHANGED)
 }
 
 public protocol LocationsObserver {
@@ -585,7 +585,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
         if let observer = self.CONFIG.sensorObserver{
             observer.onHeadingChanged(data: data)
         }
-        self.notificationCenter.post(name: .actinoAwareLocationsHeadingChanged,
+        self.notificationCenter.post(name: .actionAwareLocationsHeadingChanged,
                                      object: self,
                                      userInfo: [LocationsSensor.EXTRA_LABEL:newHeading])
         if let engine = self.dbEngine {
