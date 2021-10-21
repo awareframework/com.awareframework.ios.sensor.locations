@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
 s.name             = 'com.awareframework.ios.sensor.locations'
-  s.version       = '0.4.7'
+s.version          = '0.5.0'
 s.summary          = 'A Location Sensor Module for AWARE Framework'
 
 # This description is used to generate tags and improve search results.
@@ -28,19 +28,16 @@ s.author           = { 'Yuuki Nishiyama' => 'yuukin@iis.u-tokyo.ac.jp' }
 s.source           = { :git => 'https://github.com/awareframework/com.awareframework.ios.sensor.locations.git', :tag => s.version.to_s }
 # s.social_media_url = 'https://twitter.com/<TWITTER_USERNAME>'
 
+s.platform              = :ios, '10.0'
 s.ios.deployment_target = '10.0'
 
 s.swift_version = '4.2'
 
 s.source_files = 'com.awareframework.ios.sensor.locations/Classes/**/*'
 
-# s.resource_bundles = {
-#   'com.awareframework.ios.sensor.locations' => ['com.awareframework.ios.sensor.locations/Assets/*.png']
-# }
-
-# s.public_header_files = 'Pod/Classes/**/*.h'
-# s.frameworks = 'UIKit', 'MapKit'
 s.frameworks = 'CoreLocation'
-s.dependency 'com.awareframework.ios.sensor.core', '~>0.4.3'
+s.dependency 'com.awareframework.ios.sensor.core', '~> 0.5.0'
+
+s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386,x86_64' }
 
 end

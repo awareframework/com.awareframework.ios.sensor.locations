@@ -507,9 +507,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
             data.verticalAccuracy = location.verticalAccuracy
             data.horizontalAccuracy = location.horizontalAccuracy
             data.label = self.CONFIG.label
-            if let floor = location.floor {
-                data.floor = floor.level as NSNumber
-            }
+            data.floor = location.floor?.level ?? 0
             dataArray.append(data)
             if let observer = CONFIG.sensorObserver {
                 observer.onLocationChanged(data: data)

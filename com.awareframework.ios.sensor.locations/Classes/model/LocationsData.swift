@@ -25,7 +25,7 @@ public class LocationsData: AwareObject {
     //open var verticalAccuracy: CLLocationAccuracy { get }
     @objc dynamic public var verticalAccuracy: Double = 0
     //@NSCopying open var floor: CLFloor? { get }
-    @objc dynamic public var floor: NSNumber? = 0
+    @objc dynamic public var floor: Int = 0
     
     override public func toDictionary() -> Dictionary<String, Any> {
         var dict = super.toDictionary()
@@ -36,9 +36,7 @@ public class LocationsData: AwareObject {
         dict["altitude"]  = altitude
         dict["horizontalAccuracy"] = horizontalAccuracy
         dict["verticalAccuracy"]  = verticalAccuracy
-        if let floorLevel = floor{
-            dict["floor"] = floorLevel.intValue
-        }
+        dict["floor"] = floor
         return dict
     }
 }
