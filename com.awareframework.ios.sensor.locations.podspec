@@ -36,6 +36,6 @@ s.swift_version = '4.2'
 s.source_files = 'com.awareframework.ios.sensor.locations/Classes/**/*'
 
 s.frameworks = 'CoreLocation'
-s.dependency 'com.awareframework.ios.sensor.core', '~> 0.5.3'
+s.dependency 'com.awareframework.ios.sensor.core' , '~> 0.5.0'
 
 end
