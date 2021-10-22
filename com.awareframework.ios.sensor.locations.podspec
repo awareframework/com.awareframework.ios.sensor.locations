@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'com.awareframework.ios.sensor.locations'
-  s.version          = '0.5.3'
+  s.version          = '0.5.4'
   s.summary          = 'A Location Sensor Module for AWARE Framework'
   
   # This description is used to generate tags and improve search results.
@@ -37,7 +37,5 @@ The locations sensor provides the best location estimate for the users’ curren
 
   s.frameworks = 'CoreLocation'
   s.dependency 'com.awareframework.ios.sensor.core' , '~> 0.5.3'
-
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
 
 end
