@@ -7,35 +7,37 @@
 #
 
 Pod::Spec.new do |s|
-s.name             = 'com.awareframework.ios.sensor.locations'
-s.version          = '0.5.1'
-s.summary          = 'A Location Sensor Module for AWARE Framework'
+  s.name             = 'com.awareframework.ios.sensor.locations'
+  s.version          = '0.5.2'
+  s.summary          = 'A Location Sensor Module for AWARE Framework'
+  
+  # This description is used to generate tags and improve search results.
+  #   * Think: What does it do? Why did you write it? What is the focus?
+  #   * Try to keep it short, snappy and to the point.
+  #   * Write the description between the DESC delimiters below.
+  #   * Finally, don't worry about the indent, CocoaPods strips it!
 
-# This description is used to generate tags and improve search results.
-#   * Think: What does it do? Why did you write it? What is the focus?
-#   * Try to keep it short, snappy and to the point.
-#   * Write the description between the DESC delimiters below.
-#   * Finally, don't worry about the indent, CocoaPods strips it!
-
-s.description      = <<-DESC
+  s.description      = <<-DESC
 The locations sensor provides the best location estimate for the users’ current location, automatically. The location data is provided by [Core Location](https://developer.apple.com/documentation/corelocation).
-DESC
+  DESC
 
-s.homepage         = 'https://github.com/awareframework/com.awareframework.ios.sensor.locations'
-# s.screenshots     = 'www.example.com/screenshots_1', 'www.example.com/screenshots_2'
-s.license          = { :type => 'Apache2', :file => 'LICENSE' }
-s.author           = { 'Yuuki Nishiyama' => 'yuukin@iis.u-tokyo.ac.jp' }
-s.source           = { :git => 'https://github.com/awareframework/com.awareframework.ios.sensor.locations.git', :tag => s.version.to_s }
-# s.social_media_url = 'https://twitter.com/<TWITTER_USERNAME>'
+  s.homepage         = 'https://github.com/awareframework/com.awareframework.ios.sensor.locations'
+  # s.screenshots     = 'www.example.com/screenshots_1', 'www.example.com/screenshots_2'
+  s.license          = { :type => 'Apache2', :file => 'LICENSE' }
+  s.author           = { 'Yuuki Nishiyama' => 'yuukin@iis.u-tokyo.ac.jp' }
+  s.source           = { :git => 'https://github.com/awareframework/com.awareframework.ios.sensor.locations.git', :tag => s.version.to_s }
+  # s.social_media_url = 'https://twitter.com/<TWITTER_USERNAME>'
 
-s.platform              = :ios, '10.0'
-s.ios.deployment_target = '10.0'
+  s.platform              = :ios, '10.0'
+  s.ios.deployment_target = '10.0'
 
-s.swift_version = '4.2'
+  s.swift_version = '4.2'
 
-s.source_files = 'com.awareframework.ios.sensor.locations/Classes/**/*'
+  s.source_files = 'com.awareframework.ios.sensor.locations/Classes/**/*'
 
-s.frameworks = 'CoreLocation'
-s.dependency 'com.awareframework.ios.sensor.core' , '~> 0.5.0'
+  s.frameworks = 'CoreLocation'
+  s.dependency 'com.awareframework.ios.sensor.core' , '~> 0.4.3'
+
+  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
 
 end
