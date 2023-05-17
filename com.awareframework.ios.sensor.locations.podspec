@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'com.awareframework.ios.sensor.locations'
-  s.version          = '0.5.4'
+  s.version          = '0.6.1'
   s.summary          = 'A Location Sensor Module for AWARE Framework'
   
   # This description is used to generate tags and improve search results.
@@ -28,14 +28,14 @@ The locations sensor provides the best location estimate for the users’ curren
   s.source           = { :git => 'https://github.com/awareframework/com.awareframework.ios.sensor.locations.git', :tag => s.version.to_s }
   # s.social_media_url = 'https://twitter.com/<TWITTER_USERNAME>'
 
-  s.platform              = :ios, '10.0'
-  s.ios.deployment_target = '10.0'
+  s.platform              = :ios, '110.0'
+  s.ios.deployment_target = '11.0'
 
   s.swift_version = '4.2'
 
   s.source_files = 'com.awareframework.ios.sensor.locations/Classes/**/*'
 
   s.frameworks = 'CoreLocation'
-  s.dependency 'com.awareframework.ios.sensor.core' , '~> 0.5.3'
+  s.dependency 'com.awareframework.ios.sensor.core' , '~> 0.6.1'
 
 end
