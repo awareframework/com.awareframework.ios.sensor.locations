@@ -540,12 +540,9 @@ extension LocationsSensor: CLLocationManagerDelegate {
             if let marks = placemarks {
                 if marks.count > 0 {
                     let placemark = marks[0]
-                    let addressDict = placemark.addressDictionary
-                    if let uwAddDict = addressDict {
-                        if let uwAddressArray = uwAddDict["FormattedAddressLines"] as? Array<String>{
-                            data.address = uwAddressArray.joined(separator: ",")
-                        }
-                    }
+                    let address = "\(placemark.subThoroughfare ?? ""), \(placemark.thoroughfare ?? ""), \(placemark.locality ?? ""), \(placemark.subLocality ?? ""), \(placemark.administrativeArea ?? ""), \(placemark.postalCode ?? ""), \(placemark.country ?? "")"
+                    data.address = address
+                    
                     if let name = placemark.name{
                         data.name = name
                     }
