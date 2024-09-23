@@ -255,6 +255,8 @@ public class LocationsSensor: AwareSensor{
             // Enable basic location features
             // enableMyWhenInUseFeatures()
             break
+        @unknown default:
+            break
         }
         
         // Do not start services that aren't available.
