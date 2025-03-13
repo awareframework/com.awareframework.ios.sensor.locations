@@ -1,17 +1,31 @@
 # AWARE: Locations
 
-[![CI Status](https://img.shields.io/travis/awareframework/com.awareframework.ios.sensor.locations.svg?style=flat)](https://travis-ci.org/awareframework/com.awareframework.ios.sensor.locations)
-[![Version](https://img.shields.io/cocoapods/v/com.awareframework.ios.sensor.locations.svg?style=flat)](https://cocoapods.org/pods/com.awareframework.ios.sensor.locations)
-[![License](https://img.shields.io/cocoapods/l/com.awareframework.ios.sensor.locations.svg?style=flat)](https://cocoapods.org/pods/com.awareframework.ios.sensor.locations)
-[![Platform](https://img.shields.io/cocoapods/p/com.awareframework.ios.sensor.locations.svg?style=flat)](https://cocoapods.org/pods/com.awareframework.ios.sensor.locations)
+[![Swift Package Manager compatible](https://img.shields.io/badge/Swift%20Package%20Manager-compatible-brightgreen.svg)](https://github.com/apple/swift-package-manager)
+
 
 The locations sensor provides the best location estimate for the users’ current location, automatically. The location data is provided by [Core Location](https://developer.apple.com/documentation/corelocation).
 
 ## Requirements
-iOS 10 or later.
+iOS 13 or later.
 
 ## Installation
 
+
+You can integrate this framework into your project via Swift Package Manager (SwiftPM) or CocoaPods.
+
+### SwiftPM
+1. Open Package Manager Windows
+    * Open `Xcode` -> Select `Menu Bar` -> `File` -> `App Package Dependencies...` 
+
+2. Find the package using the manager
+    * Select `Search Package URL` and type `git@github.com:awareframework/com.awareframework.ios.sensor.accelerometer.git`
+
+3. Import the package into your target.
+
+4. Add `NSLocationAlwaysAndWhenInUseUsageDescription` and `NSLocationWhenInUseUsageDescription` into Info.plist.
+
+
+### CocoaPods
 com.aware.ios.sensor.locations is available through [CocoaPods](https://cocoapods.org). 
 
 1. To install it, simply add the following line to your Podfile:
@@ -26,6 +40,7 @@ import com_awareframework_ios_sensor_locations
 ```
 
 3. Open your project ( *.xcworkspace ) and add `NSLocationAlwaysAndWhenInUseUsageDescription` and `NSLocationWhenInUseUsageDescription` into Info.plist.
+
 
 ## Public functions
 
@@ -117,7 +132,7 @@ class Observer:LocationsObserver {
 
 ## Author
 
-Yuuki Nishiyama, yuukin@iis.u-tokyo.ac.jp
+Yuuki Nishiyama (The University of Tokyo), nishiyama@csis.u-tokyo.ac.jp
 
 ## Related links
 - [ Apple | Core Location](https://developer.apple.com/documentation/corelocation)
