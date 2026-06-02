@@ -24,24 +24,6 @@ You can integrate this framework into your project via Swift Package Manager (Sw
 
 4. Add `NSLocationAlwaysAndWhenInUseUsageDescription` and `NSLocationWhenInUseUsageDescription` into Info.plist.
 
-
-### CocoaPods
-com.aware.ios.sensor.locations is available through [CocoaPods](https://cocoapods.org). 
-
-1. To install it, simply add the following line to your Podfile:
-
-```ruby
-pod 'com.awareframework.ios.sensor.locations'
-```
-
-2. Import com.aware.ios.sensor.locations library into your source code.
-```swift
-import com_awareframework_ios_sensor_locations
-```
-
-3. Open your project ( *.xcworkspace ) and add `NSLocationAlwaysAndWhenInUseUsageDescription` and `NSLocationWhenInUseUsageDescription` into Info.plist.
-
-
 ## Public functions
 
 ### LocationsSensor
@@ -139,7 +121,7 @@ Yuuki Nishiyama (The University of Tokyo), nishiyama@csis.u-tokyo.ac.jp
 - [ Apple | CLLocation](https://developer.apple.com/documentation/corelocation/cllocation)
 
 ## License
-Copyright (c) 2021 AWARE Mobile Context Instrumentation Middleware/Framework (http://www.awareframework.com)
+Copyright (c) 2025 AWARE Mobile Context Instrumentation Middleware/Framework (http://www.awareframework.com)
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 
