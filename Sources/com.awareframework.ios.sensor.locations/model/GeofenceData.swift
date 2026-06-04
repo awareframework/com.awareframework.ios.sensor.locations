@@ -1,42 +1,78 @@
-//
-//  GeofenceData.swift
-//  com.awareframework.ios.sensor.core
-//
-//  Created by Yuuki Nishiyama on 2018/12/07.
-//
+import Foundation
+import com_awareframework_ios_core
+import GRDB
 
-import UIKit
-import com_awareframework_ios_sensor_core
+public struct GeofenceData: BaseDbModelSQLite {
+    public var id: Int64?
+    public var timestamp: Int64 = 0
+    public var deviceId: String = AwareUtils.getCommonDeviceId()
+    public var label: String = ""
+    public var timezone: Int = AwareUtils.getTimeZone()
+    public var os: String = "iOS"
+    public var jsonVersion: Int = 1
 
-public class GeofenceData: AwareObject {
-    
-    public static let TABLE_NAME = "geofenceData"
-    
-    @objc dynamic public var horizontalAccuracy: Double = 0
-    @objc dynamic public var verticalAccuracy: Double   = 0
-    @objc dynamic public var latitude:Double            = 0
-    @objc dynamic public var longitude:Double           = 0
+    public static let databaseTableName = "geofenceData"
 
-    @objc dynamic public var onExit:Bool  = false
-    @objc dynamic public var onEntry:Bool = false
+    public var horizontalAccuracy: Double = 0
+    public var verticalAccuracy:   Double = 0
+    public var latitude:  Double = 0
+    public var longitude: Double = 0
+    public var onExit:  Bool = false
+    public var onEntry: Bool = false
+    public var targetLatitude:  Double = 0
+    public var targetLongitude: Double = 0
+    public var targetRadius:    Double = 0
+    public var identifier: String = ""
 
-    @objc dynamic public var targetLatitude:Double  = 0
-    @objc dynamic public var targetLongitude:Double = 0
-    @objc dynamic public var targetRadius:Double    = 0
-    @objc dynamic public var identifier:String      = ""
+    public init() {}
 
-    
-    public override func toDictionary() -> Dictionary<String, Any> {
-        var dict = super.toDictionary()
-        dict["horizontalAccuracy"] = horizontalAccuracy
-        dict["verticalAccuracy"]   = verticalAccuracy
-        dict["latitude"]           = latitude
-        dict["longitude"]          = longitude
-        
-        dict["onExit"]  = onExit
-        dict["onEntry"] = onEntry
+    public init(_ dict: Dictionary<String, Any>) {
+        timestamp          = dict["timestamp"] as? Int64 ?? 0
+        label              = dict["label"] as? String ?? ""
+        deviceId           = dict["deviceId"] as? String ?? AwareUtils.getCommonDeviceId()
+        horizontalAccuracy = dict["horizontalAccuracy"] as? Double ?? 0
+        verticalAccuracy   = dict["verticalAccuracy"] as? Double ?? 0
+        latitude           = dict["latitude"] as? Double ?? 0
+        longitude          = dict["longitude"] as? Double ?? 0
+        onExit             = dict["onExit"] as? Bool ?? false
+        onEntry            = dict["onEntry"] as? Bool ?? false
+        identifier         = dict["identifier"] as? String ?? ""
+    }
 
-        dict["identifier"]         = identifier
-        return dict
+    public static func createTable(queue: DatabaseQueue) throws {
+        try queue.write { db in
+            try db.create(table: databaseTableName, ifNotExists: true) { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("deviceId", .text).notNull()
+                t.column("timestamp", .integer).notNull()
+                t.column("label", .text).notNull()
+                t.column("timezone", .integer).notNull()
+                t.column("os", .text).notNull()
+                t.column("jsonVersion", .integer).notNull()
+                t.column("horizontalAccuracy", .double).notNull()
+                t.column("verticalAccuracy", .double).notNull()
+                t.column("latitude", .double).notNull()
+                t.column("longitude", .double).notNull()
+                t.column("onExit", .boolean).notNull()
+                t.column("onEntry", .boolean).notNull()
+                t.column("identifier", .text).notNull()
+            }
+        }
+    }
+
+    public func toDictionary() -> Dictionary<String, Any> {
+        return [
+            "id": id ?? -1,
+            "timestamp": timestamp,
+            "deviceId": deviceId,
+            "label": label,
+            "horizontalAccuracy": horizontalAccuracy,
+            "verticalAccuracy": verticalAccuracy,
+            "latitude": latitude,
+            "longitude": longitude,
+            "onExit": onExit,
+            "onEntry": onEntry,
+            "identifier": identifier
+        ]
     }
 }

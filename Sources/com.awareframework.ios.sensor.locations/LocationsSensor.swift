@@ -6,7 +6,7 @@
 //
 
 import UIKit
-import com_awareframework_ios_sensor_core
+import com_awareframework_ios_core
 import CoreLocation
 
 extension Notification.Name {
@@ -36,7 +36,11 @@ public protocol LocationsObserver {
 public class LocationsSensor: AwareSensor{
 
     public let locationManager = CLLocationManager()
-    
+
+    var visitEngine:    Engine? = nil
+    var geofenceEngine: Engine? = nil
+    var headingEngine:  Engine? = nil
+
     public var CONFIG:LocationsSensor.Config
     
     public static let TAG = "AWARE::Locations"
@@ -145,6 +149,7 @@ public class LocationsSensor: AwareSensor{
         public override init() {
             super.init()
             dbPath = "aware_locations"
+            dbTableName = LocationsData.databaseTableName
         }
         
         public override func set(config: Dictionary<String, Any>) {
@@ -233,14 +238,33 @@ public class LocationsSensor: AwareSensor{
     public init(_ config:LocationsSensor.Config){
         self.CONFIG = config
         super.init()
-        self.locationManager.delegate = self;
+        self.locationManager.delegate = self
         self.initializeDbEngine(config: config)
-        if config.debug { print(LocationsSensor.TAG,"Location sensor is created.") }
+
+        let makeEngine = { (tableName: String) -> Engine in
+            Engine.Builder()
+                .setPath(config.dbPath)
+                .setType(config.dbType)
+                .setHost(config.dbHost)
+                .setTableName(tableName)
+                .build()
+        }
+        visitEngine    = makeEngine(VisitData.databaseTableName)
+        geofenceEngine = makeEngine(GeofenceData.databaseTableName)
+        headingEngine  = makeEngine(HeadingData.databaseTableName)
+
+
+        self.syncConfig = DbSyncConfig().apply { c in
+            c.debug = config.debug
+            c.dispatchQueue = DispatchQueue(label: "com.awareframework.ios.sensor.locations.sync.queue")
+        }
+
+        if config.debug { print(LocationsSensor.TAG, "Location sensor is created.") }
     }
     
     public override func start() {
         
-        switch CLLocationManager.authorizationStatus() {
+        switch currentAuthorizationStatus {
         case .notDetermined:
             // Request when-in-use authorization initially
             if CONFIG.debug { print(LocationsSensor.TAG,"Location service is not authorized. Send an authorization request.") }
@@ -258,14 +282,7 @@ public class LocationsSensor: AwareSensor{
         @unknown default:
             break
         }
-        
-        // Do not start services that aren't available.
-        if !CLLocationManager.locationServicesEnabled() {
-            // Location services is not available.
-            if CONFIG.debug { print(LocationsSensor.TAG,"Location services are not enabled. \(#line)") }
-            return
-        }
-        
+
         if CONFIG.debug { print(LocationsSensor.TAG,"Start location services") }
         self.startLocationServices()
 
@@ -278,6 +295,13 @@ public class LocationsSensor: AwareSensor{
         }
         
         self.notificationCenter.post(name: .actionAwareLocationsStart, object: self)
+    }
+
+    private var currentAuthorizationStatus: CLAuthorizationStatus {
+        if #available(iOS 14.0, *) {
+            return locationManager.authorizationStatus
+        }
+        return CLLocationManager.authorizationStatus()
     }
     
     
@@ -292,62 +316,27 @@ public class LocationsSensor: AwareSensor{
     }
     
     public override func sync(force: Bool = false) {
-        if CONFIG.debug { print(LocationsSensor.TAG,"Start database sync") }
-        
-        let config = DbSyncConfig().apply{ setting in
-            setting.debug = self.CONFIG.debug
-            setting.dispatchQueue = DispatchQueue(label: "com.awareframework.ios.sensor.locations.sync.queue")
-        }
-        
-        if let enging = self.dbEngine {
-            /// locations
-            enging.startSync(LocationsData.TABLE_NAME, LocationsData.self, config.apply{setting in
-                setting.completionHandler = { (status, error) in
-                    var userInfo: Dictionary<String,Any> = [LocationsSensor.EXTRA_STATUS:status,
-                                                            LocationsSensor.EXTRA_TABLE_NAME:LocationsData.TABLE_NAME,
-                                                            LocationsSensor.EXTRA_OBJECT_TYPE:LocationsData.self]
-                    if let e = error {
-                        userInfo[LocationsSensor.EXTRA_ERROR] = e
-                    }
-                    self.notificationCenter.post(name: .actionAwareLocationsSyncCompletion ,
-                                                 object: self,
-                                                 userInfo:userInfo)
+        if CONFIG.debug { print(LocationsSensor.TAG, "Start database sync") }
+        self.notificationCenter.post(name: .actionAwareLocationsSync, object: self)
+
+        let makeSyncConfig = { (tableName: String) -> DbSyncConfig in
+            DbSyncConfig().apply { c in
+                c.debug = self.CONFIG.debug
+                c.dispatchQueue = DispatchQueue(label: "com.awareframework.ios.sensor.locations.sync.\(tableName)")
+                c.completionHandler = { status, error in
+                    var userInfo: [String: Any] = [LocationsSensor.EXTRA_STATUS: status,
+                                                   LocationsSensor.EXTRA_TABLE_NAME: tableName]
+                    if let e = error { userInfo[LocationsSensor.EXTRA_ERROR] = e }
+                    self.notificationCenter.post(name: .actionAwareLocationsSyncCompletion,
+                                                 object: self, userInfo: userInfo)
                 }
-            })
-            
-            /// location visit
-            enging.startSync(VisitData.TABLE_NAME, VisitData.self, config.apply{setting in
-                setting.completionHandler = { (status, error) in
-                    var userInfo: Dictionary<String,Any> = [LocationsSensor.EXTRA_STATUS:status,
-                                                            LocationsSensor.EXTRA_TABLE_NAME:VisitData.TABLE_NAME,
-                                                            LocationsSensor.EXTRA_OBJECT_TYPE:VisitData.self]
-                    if let e = error {
-                        userInfo[LocationsSensor.EXTRA_ERROR] = e
-                    }
-                    self.notificationCenter.post(name: .actionAwareLocationsSyncCompletion ,
-                                                 object: self,
-                                                 userInfo:userInfo)
-                }
-            })
-            
-            /// region
-            enging.startSync(GeofenceData.TABLE_NAME, GeofenceData.self, config.apply{setting in
-                setting.completionHandler = { (status, error) in
-                    var userInfo: Dictionary<String,Any> = [LocationsSensor.EXTRA_STATUS:status,
-                                                            LocationsSensor.EXTRA_TABLE_NAME:GeofenceData.TABLE_NAME,
-                                                            LocationsSensor.EXTRA_OBJECT_TYPE:GeofenceData.self]
-                    if let e = error {
-                        userInfo[LocationsSensor.EXTRA_ERROR] = e
-                    }
-                    self.notificationCenter.post(name: .actionAwareLocationsSyncCompletion ,
-                                                 object: self,
-                                                 userInfo:userInfo)
-                }
-            })
-            
-            self.notificationCenter.post(name: .actionAwareLocationsSync, object: self)
+            }
         }
 
+        dbEngine?.startSync(makeSyncConfig(LocationsData.databaseTableName))
+        visitEngine?.startSync(makeSyncConfig(VisitData.databaseTableName))
+        geofenceEngine?.startSync(makeSyncConfig(GeofenceData.databaseTableName))
+        headingEngine?.startSync(makeSyncConfig(HeadingData.databaseTableName))
     }
     
     public override func set(label:String) {
@@ -461,15 +450,23 @@ public class LocationsSensor: AwareSensor{
 
 extension LocationsSensor: CLLocationManagerDelegate {
 
+    @available(iOS 14.0, *)
+    public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        if self.CONFIG.debug { print(#function) }
+        handleAuthorizationStatus(manager.authorizationStatus)
+    }
+
     public func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         if self.CONFIG.debug { print(#function) }
+        handleAuthorizationStatus(status)
+    }
+
+    private func handleAuthorizationStatus(_ status: CLAuthorizationStatus) {
         switch status {
         case .authorizedAlways:
             self.start()
-            break
         case .authorizedWhenInUse:
             self.start()
-            break
         default:
             break
         }
@@ -495,7 +492,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
     func saveLocations(_ locations:[CLLocation], eventTime:Date?){
         var dataArray = Array<LocationsData>()
         for location in locations{
-            let data = LocationsData()
+            var data = LocationsData()
             if let uwEventTime = eventTime {
                 data.timestamp = Int64(uwEventTime.timeIntervalSince1970 * 1000)
             }else{
@@ -515,9 +512,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
                 observer.onLocationChanged(data: data)
             }
         }
-        if let enging = self.dbEngine {
-            enging.save(dataArray)
-        }
+        dbEngine?.save(dataArray)
         self.notificationCenter.post(name: .actionAwareLocations, object: self)
     }
     
@@ -525,7 +520,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
         // TODO: development
         if self.CONFIG.debug { print(visit) }
         
-        let data = VisitData()
+        var data = VisitData()
         data.horizontalAccuracy = visit.horizontalAccuracy
         data.latitude = visit.coordinate.latitude
         data.longitude = visit.coordinate.longitude
@@ -553,9 +548,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
             
             if self.CONFIG.debug { print(data) }
             
-            if let engine = self.dbEngine {
-                engine.save(data)
-            }
+            self.visitEngine?.save([data])
             if let observer = self.CONFIG.sensorObserver {
                 observer.onVisit(data: data)
             }
@@ -571,7 +564,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
         // TODO: development
         self.LAST_HEADING = newHeading
         // needleView.transform = CGAffineTransform.init(rotationAngle: CGFloat(-newHeading.magneticHeading) * CGFloat.pi / 180)
-        let data = HeadingData()
+        var data = HeadingData()
         data.magneticHeading = newHeading.magneticHeading
         data.trueHeading = newHeading.trueHeading
         data.headingAccuracy = newHeading.headingAccuracy
@@ -585,16 +578,14 @@ extension LocationsSensor: CLLocationManagerDelegate {
         self.notificationCenter.post(name: .actionAwareLocationsHeadingChanged,
                                      object: self,
                                      userInfo: [LocationsSensor.EXTRA_LABEL:newHeading])
-        if let engine = self.dbEngine {
-            engine.save(data)
-        }
+        headingEngine?.save([data])
         if self.CONFIG.debug { print(data) }
 
     }
     
     public func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
         if self.CONFIG.debug { print(region) }
-        let data = GeofenceData()
+        var data = GeofenceData()
         data.onEntry = true
         data.identifier = region.identifier
         if let location = manager.location {
@@ -605,11 +596,9 @@ extension LocationsSensor: CLLocationManagerDelegate {
         }
         data.label = self.CONFIG.label
         if let observer = self.CONFIG.sensorObserver {
-            observer.onEnterRegion(data:data)
+            observer.onEnterRegion(data: data)
         }
-        if let engine = self.dbEngine {
-            engine.save(data)
-        }
+        geofenceEngine?.save([data])
         self.notificationCenter.post(name: .actionAwareLocationsEnterRegion,
                                      object: self,
                                      userInfo: [LocationsSensor.EXTRA_LABEL:region.identifier])
@@ -618,7 +607,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
     
     public func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
         if self.CONFIG.debug { print(region) }
-        let data = GeofenceData()
+        var data = GeofenceData()
         data.onExit = true
         data.identifier = region.identifier
         data.label = self.CONFIG.label
@@ -629,11 +618,9 @@ extension LocationsSensor: CLLocationManagerDelegate {
             data.longitude = location.coordinate.longitude
         }
         if let observer = self.CONFIG.sensorObserver {
-            observer.onExitRegion(data:data)
+            observer.onExitRegion(data: data)
         }
-        if let engine = self.dbEngine {
-            engine.save(data)
-        }
+        geofenceEngine?.save([data])
         self.notificationCenter.post(name: .actionAwareLocationsExitRegion,
                                      object: self,
                                      userInfo: [LocationsSensor.EXTRA_LABEL:region.identifier])
