@@ -14,8 +14,7 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(
-            url: "https://github.com/awareframework/com.awareframework.ios.core.git", from: "1.1.0")
+        .package(url: "https://github.com/awareframework/com.awareframework.ios.core.git", from: "1.1.0")
     ],
     targets: [
         .target(

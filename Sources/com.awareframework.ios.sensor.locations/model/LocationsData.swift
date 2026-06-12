@@ -11,7 +11,7 @@ public struct LocationsData: BaseDbModelSQLite {
     public var os: String = "iOS"
     public var jsonVersion: Int = 1
 
-    public static let databaseTableName = "locationsData"
+    public static let databaseTableName = "ios_locations"
 
     public var latitude:  Double = 0
     public var longitude: Double = 0

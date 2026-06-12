@@ -11,7 +11,7 @@ public struct HeadingData: BaseDbModelSQLite {
     public var os: String = "iOS"
     public var jsonVersion: Int = 1
 
-    public static let databaseTableName = "headingData"
+    public static let databaseTableName = "ios_heading"
 
     public var magneticHeading:  Double = 0
     public var trueHeading:      Double = 0

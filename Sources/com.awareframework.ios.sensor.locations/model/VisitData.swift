@@ -11,7 +11,7 @@ public struct VisitData: BaseDbModelSQLite {
     public var os: String = "iOS"
     public var jsonVersion: Int = 1
 
-    public static let databaseTableName = "visitData"
+    public static let databaseTableName = "ios_visit"
 
     public var horizontalAccuracy: Double = 0
     public var latitude:  Double = 0

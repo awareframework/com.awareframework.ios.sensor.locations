@@ -11,7 +11,7 @@ public struct GeofenceData: BaseDbModelSQLite {
     public var os: String = "iOS"
     public var jsonVersion: Int = 1
 
-    public static let databaseTableName = "geofenceData"
+    public static let databaseTableName = "ios_geofence"
 
     public var horizontalAccuracy: Double = 0
     public var verticalAccuracy:   Double = 0

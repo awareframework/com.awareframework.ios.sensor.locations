@@ -67,21 +67,41 @@ Class to hold the configuration of the sensor.
 
 Contains the locations profiles.
 
-| Field     | Type   | Description                                                     |
-| --------- | ------ | --------------------------------------------------------------- |
-| latitude  | Double | The latitude in degrees.                            |
-| longitude | Double | The longitude in degrees.                          |
-| course   | Double  | The direction in which the device is traveling, measured in degrees and relative to due north.                            |
-| speed     | Float  | The instantaneous speed of the device, measured in meters per second.           |
-| altitude  | Double | The altitude, measured in meters.            |
-| floor     | Double? | The logical floor of the building in which the user is located. | 
-| horizontalAccuracy  | Double  | The radius of uncertainty for the location, measured in meters.  |
-| verticalAccuracy    | Double  | The accuracy of the altitude value, measured in meters.     |
-| deviceId  | String | AWARE device UUID                                               |
-| label     | String | Customizable label. Useful for data calibration or traceability |
-| timestamp | Long   | Unixtime milliseconds since 1970                                |
-| timezone  | Int    | Rimezone of the device                          |
-| os        | String | Operating system of the device (e.g., ios)                    |
+| Field              | Type   | Description                                                     |
+| ------------------ | ------ | --------------------------------------------------------------- |
+| latitude           | Double | The latitude in degrees.                                        |
+| longitude          | Double | The longitude in degrees.                                       |
+| course             | Double | The direction in which the device is traveling, measured in degrees and relative to due north. |
+| speed              | Double | The instantaneous speed of the device, measured in meters per second. |
+| altitude           | Double | The altitude, measured in meters.                               |
+| floor              | Int    | The logical floor of the building in which the user is located. |
+| horizontalAccuracy | Double | The radius of uncertainty for the location, measured in meters. |
+| verticalAccuracy   | Double | The accuracy of the altitude value, measured in meters.         |
+| deviceId           | String | AWARE device UUID                                               |
+| label              | String | Customizable label. Useful for data calibration or traceability |
+| timestamp          | Int64  | Unixtime milliseconds since 1970                                |
+| timezone           | Int    | Timezone of the device                                          |
+| os                 | String | Operating system of the device (e.g., ios)                      |
+| jsonVersion        | Int    | JSON schema version                                             |
+
+### Heading Data
+
+Contains compass/heading data.
+
+| Field           | Type   | Description                                                     |
+| --------------- | ------ | --------------------------------------------------------------- |
+| magneticHeading | Double | The heading (in degrees) relative to magnetic north.            |
+| trueHeading     | Double | The heading (in degrees) relative to true north.                |
+| headingAccuracy | Double | The maximum deviation (in degrees) between reported and true heading. |
+| x               | Double | The geomagnetic data (x-axis) measured in microteslas.          |
+| y               | Double | The geomagnetic data (y-axis) measured in microteslas.          |
+| z               | Double | The geomagnetic data (z-axis) measured in microteslas.          |
+| deviceId        | String | AWARE device UUID                                               |
+| label           | String | Customizable label. Useful for data calibration or traceability |
+| timestamp       | Int64  | Unixtime milliseconds since 1970                                |
+| timezone        | Int    | Timezone of the device                                          |
+| os              | String | Operating system of the device (e.g., ios)                      |
+| jsonVersion     | Int    | JSON schema version                                             |
 
 ## Example usage
 ```swift
@@ -89,7 +109,7 @@ Contains the locations profiles.
 let locationSensor = LocationsSensor.init(LocationsSensor.Config().apply{config in
     config.sensorObserver = Observer()
     config.debug = true
-    config.dbType = DatabaseType.REALM
+    config.dbType = .sqlite
     // more configuration...
 })
 // To start the sensor
