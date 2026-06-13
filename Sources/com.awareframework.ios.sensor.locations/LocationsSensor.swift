@@ -588,6 +588,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
         if self.CONFIG.debug { print(visit) }
 
         var data = VisitData()
+        data.timestamp = Int64(Date().timeIntervalSince1970 * 1000)
         data.horizontalAccuracy = visit.horizontalAccuracy
         data.latitude = visit.coordinate.latitude
         data.longitude = visit.coordinate.longitude
@@ -658,6 +659,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
     public func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
         if self.CONFIG.debug { print(region) }
         var data = GeofenceData()
+        data.timestamp = Int64(Date().timeIntervalSince1970 * 1000)
         data.onEntry = true
         data.identifier = region.identifier
         if let location = manager.location {
@@ -681,6 +683,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
     public func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
         if self.CONFIG.debug { print(region) }
         var data = GeofenceData()
+        data.timestamp = Int64(Date().timeIntervalSince1970 * 1000)
         data.onExit = true
         data.identifier = region.identifier
         data.label = self.CONFIG.label
