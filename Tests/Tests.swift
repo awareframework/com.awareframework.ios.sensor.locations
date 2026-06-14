@@ -42,7 +42,7 @@ class Tests: XCTestCase {
         XCTAssertEqual(sensor.CONFIG.frequencyGps, 180)
         XCTAssertEqual(sensor.CONFIG.minGpsAccuracy, 150)
         XCTAssertEqual(sensor.CONFIG.expirationTime, 300)
-        XCTAssertEqual(sensor.CONFIG.saveAll, false)
+        XCTAssertEqual(sensor.CONFIG.saveAll, true)
         XCTAssertEqual(sensor.CONFIG.statusLocationVisit, true)
 
         // negative values are rejected

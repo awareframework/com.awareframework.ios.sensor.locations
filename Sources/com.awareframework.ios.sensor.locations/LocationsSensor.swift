@@ -132,7 +132,7 @@ public class LocationsSensor: AwareSensor {
                 }
             }
         }
-        public var minGpsAccuracy: Double = 150 {
+        public var minGpsAccuracy: Double = 100 {
             didSet {
                 if self.minGpsAccuracy < 0 {
                     print(
@@ -154,7 +154,7 @@ public class LocationsSensor: AwareSensor {
             }
         }
 
-        public var saveAll = false
+        public var saveAll = true
 
         public var regions: [CLRegion] = [CLRegion]()
 
@@ -439,7 +439,7 @@ public class LocationsSensor: AwareSensor {
 
         if self.CONFIG.statusGps {
             locationManager.startUpdatingLocation()
-            locationManager.startMonitoringSignificantLocationChanges()
+            // locationManager.startMonitoringSignificantLocationChanges()
         }
 
         if self.CONFIG.statusLocationVisit {
@@ -458,7 +458,7 @@ public class LocationsSensor: AwareSensor {
     func stopLocationServices() {
         if self.CONFIG.statusGps {
             locationManager.stopUpdatingLocation()
-            locationManager.stopMonitoringSignificantLocationChanges()
+            // locationManager.stopMonitoringSignificantLocationChanges()
         }
         if self.CONFIG.statusLocationVisit {
             locationManager.stopMonitoringVisits()
