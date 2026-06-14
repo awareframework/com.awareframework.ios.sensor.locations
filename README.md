@@ -34,9 +34,10 @@ Class to hold the configuration of the sensor.
 #### Fields
 + `sensorObserver: LocationsObserver?` Callback for live data updates. (default = `null`)
 + `frequency: Int` how frequent to check the location, in seconds. By default, every 180 seconds. Setting to 0 (zero) will keep the GPS location tracking always on. (default = 180)
-+ `accuracy: Int`  the minimum acceptable accuracy of GPS location, in meters. By default, 150 meters. Setting to 0 (zero) will keep the GPS location tracking always on. (default = 150)
++ `accuracy: Int`  the minimum acceptable accuracy of GPS location, in meters. By default, 100 meters. Setting to 0 (zero) will keep the GPS location tracking always on. (default = 100)
 + `expirationTime: Int64` the amount of elapsed time, in seconds, until the location is considered outdated. By default, 300 seconds. (default = 300)
 + `saveAll: Boolean` Whether to save all the location updates or not. (default = `true`)
++ `statusGps: Boolean` Whether to use continuous GPS location tracking. Significant-location-change monitoring (`startMonitoringSignificantLocationChanges`) is disabled; fine-grained tracking via `startUpdatingLocation` is used exclusively. (default = `true`)
 + `enabled: Boolean` Sensor is enabled or not. (default = `false`)
 + `debug: Boolean` enable/disable logging to `Logcat`. (default = `false`)
 + `label: String` Label for the data. (default = "")
