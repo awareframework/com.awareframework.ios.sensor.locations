@@ -55,6 +55,7 @@ public class LocationsSensor: AwareSensor {
     public static let TAG = "AWARE::Locations"
 
     var timer: Timer?
+    private var hasRequestedAlwaysAuthorization = false
 
     public var LAST_DATA: CLLocation?
 
@@ -315,7 +316,7 @@ public class LocationsSensor: AwareSensor {
                     LocationsSensor.TAG,
                     "Location service is not authorized. Send an authorization request.")
             }
-            locationManager.requestAlwaysAuthorization()
+            locationManager.requestWhenInUseAuthorization()
             return
         case .restricted, .denied:
             // Disable location features
@@ -327,7 +328,9 @@ public class LocationsSensor: AwareSensor {
                 )
             }
             return
-        case .authorizedWhenInUse, .authorizedAlways:
+        case .authorizedWhenInUse:
+            requestAlwaysAuthorizationIfNeeded()
+        case .authorizedAlways:
             // Enable basic location features
             // enableMyWhenInUseFeatures()
             break
@@ -355,6 +358,12 @@ public class LocationsSensor: AwareSensor {
             return locationManager.authorizationStatus
         }
         return CLLocationManager.authorizationStatus()
+    }
+
+    private func requestAlwaysAuthorizationIfNeeded() {
+        guard !hasRequestedAlwaysAuthorization else { return }
+        hasRequestedAlwaysAuthorization = true
+        locationManager.requestAlwaysAuthorization()
     }
 
     public override func stop() {
@@ -531,6 +540,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
         case .authorizedAlways:
             self.start()
         case .authorizedWhenInUse:
+            requestAlwaysAuthorizationIfNeeded()
             self.start()
         default:
             break
