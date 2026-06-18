@@ -123,13 +123,13 @@ public class LocationsSensor: AwareSensor {
         public var statusGps = true
         public var statusLocationVisit = true
         public var statusHeading = true
-        public var frequencyGps: Double = 180 {
+        public var sampleIntervalSeconds: Double = 180 {
             didSet {
-                if self.frequencyGps <= 0 {
+                if self.sampleIntervalSeconds <= 0 {
                     print(
-                        "[LocationsSensor][Illegal Parameter] The 'frequencyGps' value has to be more than 0. ",
-                        "This parameter (\(self.frequencyGps)) is ignored.")
-                    self.frequencyGps = oldValue
+                        "[LocationsSensor][Illegal Parameter] The 'sampleIntervalSeconds' value has to be more than 0. ",
+                        "This parameter (\(self.sampleIntervalSeconds)) is ignored.")
+                    self.sampleIntervalSeconds = oldValue
                 }
             }
         }
@@ -179,8 +179,8 @@ public class LocationsSensor: AwareSensor {
                 statusGps = status
             }
 
-            if let frequency = config["frequencyGps"] as? Double {
-                frequencyGps = frequency
+            if let sampleIntervalSeconds = config["sampleIntervalSeconds"] as? Double {
+                self.sampleIntervalSeconds = sampleIntervalSeconds
             }
 
             if let minGps = config["minGpsAccuracy"] as? Double {
@@ -343,7 +343,7 @@ public class LocationsSensor: AwareSensor {
 
         if self.timer == nil {
             self.timer = Timer.scheduledTimer(
-                withTimeInterval: CONFIG.frequencyGps,
+                withTimeInterval: CONFIG.sampleIntervalSeconds,
                 repeats: true,
                 block: { (timer) in
                     self.saveLocationData()

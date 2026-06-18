@@ -39,25 +39,25 @@ class Tests: XCTestCase {
         // default values
         var sensor = LocationsSensor()
         XCTAssertEqual(sensor.CONFIG.statusGps, true)
-        XCTAssertEqual(sensor.CONFIG.frequencyGps, 180)
-        XCTAssertEqual(sensor.CONFIG.minGpsAccuracy, 150)
+        XCTAssertEqual(sensor.CONFIG.sampleIntervalSeconds, 180)
+        XCTAssertEqual(sensor.CONFIG.minGpsAccuracy, 100)
         XCTAssertEqual(sensor.CONFIG.expirationTime, 300)
         XCTAssertEqual(sensor.CONFIG.saveAll, true)
         XCTAssertEqual(sensor.CONFIG.statusLocationVisit, true)
 
         // negative values are rejected
         sensor = LocationsSensor(LocationsSensor.Config().apply { config in
-            config.frequencyGps    = -10
+            config.sampleIntervalSeconds    = -10
             config.minGpsAccuracy  = -100
             config.expirationTime  = -10
         })
-        XCTAssertEqual(sensor.CONFIG.frequencyGps,   180)
-        XCTAssertEqual(sensor.CONFIG.minGpsAccuracy, 150)
+        XCTAssertEqual(sensor.CONFIG.sampleIntervalSeconds,   180)
+        XCTAssertEqual(sensor.CONFIG.minGpsAccuracy, 100)
         XCTAssertEqual(sensor.CONFIG.expirationTime, 300)
 
         // apply closure
         let statusGps          = false
-        let frequencyGps:   Double = 100
+        let sampleIntervalSeconds:   Double = 100
         let minGpsAccuracy: Double = 100
         let expirationTime: Int64  = 100
         let saveAll            = true
@@ -66,13 +66,13 @@ class Tests: XCTestCase {
         sensor = LocationsSensor(LocationsSensor.Config().apply { config in
             config.statusGps            = statusGps
             config.statusLocationVisit  = statusLocationVisit
-            config.frequencyGps         = frequencyGps
+            config.sampleIntervalSeconds         = sampleIntervalSeconds
             config.minGpsAccuracy       = minGpsAccuracy
             config.expirationTime       = expirationTime
             config.saveAll              = saveAll
         })
         XCTAssertEqual(sensor.CONFIG.statusGps,           statusGps)
-        XCTAssertEqual(sensor.CONFIG.frequencyGps,        frequencyGps)
+        XCTAssertEqual(sensor.CONFIG.sampleIntervalSeconds,        sampleIntervalSeconds)
         XCTAssertEqual(sensor.CONFIG.minGpsAccuracy,      minGpsAccuracy)
         XCTAssertEqual(sensor.CONFIG.expirationTime,      expirationTime)
         XCTAssertEqual(sensor.CONFIG.saveAll,             saveAll)
@@ -81,7 +81,7 @@ class Tests: XCTestCase {
         // dictionary init
         var config: [String: Any] = [
             "statusGps": statusGps,
-            "frequencyGps": frequencyGps,
+            "sampleIntervalSeconds": sampleIntervalSeconds,
             "minGpsAccuracy": minGpsAccuracy,
             "expirationTime": expirationTime,
             "statusLocationVisit": statusLocationVisit,
@@ -89,7 +89,7 @@ class Tests: XCTestCase {
         ]
         sensor = LocationsSensor(LocationsSensor.Config(config))
         XCTAssertEqual(sensor.CONFIG.statusGps,           statusGps)
-        XCTAssertEqual(sensor.CONFIG.frequencyGps,        frequencyGps)
+        XCTAssertEqual(sensor.CONFIG.sampleIntervalSeconds,        sampleIntervalSeconds)
         XCTAssertEqual(sensor.CONFIG.minGpsAccuracy,      minGpsAccuracy)
         XCTAssertEqual(sensor.CONFIG.expirationTime,      expirationTime)
         XCTAssertEqual(sensor.CONFIG.saveAll,             saveAll)

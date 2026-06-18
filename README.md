@@ -10,7 +10,7 @@ iOS 13 or later.
 ## Installation
 
 1. Open Package Manager Windows
-    * Open `Xcode` -> Select `Menu Bar` -> `File` -> `App Package Dependencies...` 
+    * Open `Xcode` -> Select `Menu Bar` -> `File` -> `App Package Dependencies...`
 
 2. Find the package using the manager
     * Select `Search Package URL` and type `https://github.com/awareframework/com.awareframework.ios.sensor.locations.git`
@@ -19,11 +19,11 @@ iOS 13 or later.
 
 4. Add `NSLocationAlwaysAndWhenInUseUsageDescription` and `NSLocationWhenInUseUsageDescription` into Info.plist.
 
-## Public functions
+## Public Functions
 
 ### LocationsSensor
 
-+ `init(config:LocationsSensor.Config?)` : Initializes the locations sensor with the optional configuration.
++ `init(config:LocationsSensor.Config?)`: Initializes the locations sensor with the optional configuration.
 + `start()`: Starts the locations sensor with the optional configuration.
 + `stop()`: Stops the service.
 
@@ -32,28 +32,29 @@ iOS 13 or later.
 Class to hold the configuration of the sensor.
 
 #### Fields
-+ `sensorObserver: LocationsObserver?` Callback for live data updates. (default = `null`)
-+ `frequency: Int` how frequent to check the location, in seconds. By default, every 180 seconds. (default = 180)
-+ `accuracy: Int`  the minimum acceptable accuracy of GPS location, in meters. By default, 100 meters. (default = 100)
-+ `expirationTime: Int64` the amount of elapsed time, in seconds, until the location is considered outdated. By default, 300 seconds. (default = 300)
-+ `saveAll: Boolean` Whether to save all the location updates or not. (default = `true`)
-+ `statusGps: Boolean` Whether to use continuous GPS location tracking. Significant-location-change monitoring (`startMonitoringSignificantLocationChanges`) is disabled; fine-grained tracking via `startUpdatingLocation` is used exclusively. (default = `true`)
-+ `enabled: Boolean` Sensor is enabled or not. (default = `false`)
-+ `debug: Boolean` enable/disable logging to `Logcat`. (default = `false`)
-+ `label: String` Label for the data. (default = "")
-+ `deviceId: String` Id of the device that will be associated with the events and the sensor. (default = "")
-+ `dbEncryptionKey` Encryption key for the database. (default = `null`)
-+ `dbType: Engine` Which db engine to use for saving data. (default = `Engine.DatabaseType.NONE`)
-+ `dbPath: String` Path of the database. (default = "aware_locations")
-+ `dbHost: String` Host for syncing the database. (default = `null`)
+
++ `sensorObserver: LocationsObserver?`: Callback for live data updates. (default = `nil`)
++ `sampleIntervalSeconds: Double`: How often to check the location, in seconds. By default, every 180 seconds. (default = `180`)
++ `accuracy: Int`: the minimum acceptable accuracy of GPS location, in meters. By default, 100 meters. (default = `100`)
++ `expirationTime: Int64`: the amount of elapsed time, in seconds, until the location is considered outdated. By default, 300 seconds. (default = `300`)
++ `saveAll: Bool`: Whether to save all the location updates or not. (default = `true`)
++ `statusGps: Bool`: Whether to use continuous GPS location tracking. Significant-location-change monitoring (`startMonitoringSignificantLocationChanges`) is disabled; fine-grained tracking via `startUpdatingLocation` is used exclusively. (default = `true`)
++ `enabled: Bool`: Sensor is enabled or not. (default = `false`)
++ `debug: Bool`: Enable/disable logging. (default = `false`)
++ `label: String`: Label for the data. (default = `""`)
++ `deviceId: String`: Id of the device that will be associated with the events and the sensor. (default = `""`)
++ `dbEncryptionKey: String?`: Encryption key for the database. (default = `nil`)
++ `dbType: DatabaseType`: Which db engine to use for saving data. (default = `.none`)
++ `dbPath: String`: Path of the database. (default = `"aware_locations"`)
++ `dbHost: String?`: Host for syncing the database. (default = `nil`)
 
 ## Broadcasts
 
 ### Fired Broadcasts
 
-+ `LocationsSensor.ACTION_AWARE_LOCATIONS` fired when new location available.
-+ `LocationsSensor.ACTION_AWARE_GPS_LOCATION_ENABLED` fired when GPS location is active.
-+ `LocationsSensor.ACTION_AWARE_GPS_LOCATION_DISABLED` fired when GPS location disabled.
++ `LocationsSensor.ACTION_AWARE_LOCATIONS`: fired when new location available.
++ `LocationsSensor.ACTION_AWARE_GPS_LOCATION_ENABLED`: fired when GPS location is active.
++ `LocationsSensor.ACTION_AWARE_GPS_LOCATION_DISABLED`: fired when GPS location disabled.
 
 ### Received Broadcasts
 
@@ -104,10 +105,10 @@ Contains compass/heading data.
 | os              | String | Operating system of the device (e.g., ios)                      |
 | jsonVersion     | Int    | JSON schema version                                             |
 
-## Example usage
+## Example Usage
 ```swift
 // To initialize the sensor
-let locationSensor = LocationsSensor.init(LocationsSensor.Config().apply{config in
+let locationSensor = LocationsSensor.init(LocationsSensor.Config().apply { config in
     config.sensorObserver = Observer()
     config.debug = true
     config.dbType = .sqlite
@@ -132,7 +133,7 @@ class Observer:LocationsObserver {
 
 Yuuki Nishiyama (The University of Tokyo), nishiyama@csis.u-tokyo.ac.jp
 
-## Related links
+## Related Links
 - [ Apple | Core Location](https://developer.apple.com/documentation/corelocation)
 - [ Apple | CLLocation](https://developer.apple.com/documentation/corelocation/cllocation)
 
