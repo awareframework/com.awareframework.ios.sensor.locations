@@ -61,6 +61,8 @@ public class LocationsSensor: AwareSensor {
 
     public var LAST_HEADING: CLHeading?
 
+    private var lastSavedLocation: CLLocation?
+
     /**
      * Fired event: New location available
      */
@@ -341,14 +343,13 @@ public class LocationsSensor: AwareSensor {
         if CONFIG.debug { print(LocationsSensor.TAG, "Start location services") }
         self.startLocationServices()
 
-        if self.timer == nil {
-            self.timer = Timer.scheduledTimer(
-                withTimeInterval: CONFIG.sampleIntervalSeconds,
-                repeats: true,
-                block: { (timer) in
-                    self.saveLocationData()
-                })
-        }
+        self.timer?.invalidate()
+        self.timer = Timer.scheduledTimer(
+            withTimeInterval: CONFIG.sampleIntervalSeconds,
+            repeats: true,
+            block: { (timer) in
+                self.saveLocationData()
+            })
 
         self.notificationCenter.post(name: .actionAwareLocationsStart, object: self)
     }
@@ -551,19 +552,45 @@ extension LocationsSensor: CLLocationManagerDelegate {
         _ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]
     ) {
 
-        if locations.count > 0 {
-            if self.CONFIG.debug {
-                print(LocationsSensor.TAG, #function, locations.debugDescription)
-            }
-            if self.LAST_DATA == nil {
-                self.saveLocations(locations, eventTime: nil)
-            }
-            self.LAST_DATA = locations.last
+        guard !locations.isEmpty else { return }
+
+        if self.CONFIG.debug {
+            print(LocationsSensor.TAG, #function, locations.debugDescription)
         }
 
-        if self.CONFIG.saveAll {
+        let shouldSaveInitialLocation = self.LAST_DATA == nil
+        self.LAST_DATA = locations.last
+
+        if self.CONFIG.saveAll || shouldSaveInitialLocation {
             self.saveLocations(locations, eventTime: nil)
+            return
         }
+
+        let significantLocations = self.significantLocationsSinceLastSave(from: locations)
+        if !significantLocations.isEmpty {
+            self.saveLocations(significantLocations, eventTime: nil)
+        }
+    }
+
+    private func significantLocationsSinceLastSave(from locations: [CLLocation]) -> [CLLocation] {
+        let threshold = max(self.CONFIG.minGpsAccuracy, 1)
+        var referenceLocation = self.lastSavedLocation
+        var significantLocations: [CLLocation] = []
+
+        for location in locations {
+            guard let reference = referenceLocation else {
+                significantLocations.append(location)
+                referenceLocation = location
+                continue
+            }
+
+            if location.distance(from: reference) >= threshold {
+                significantLocations.append(location)
+                referenceLocation = location
+            }
+        }
+
+        return significantLocations
     }
 
     func saveLocations(_ locations: [CLLocation], eventTime: Date?) {
@@ -590,6 +617,9 @@ extension LocationsSensor: CLLocationManagerDelegate {
             }
         }
         dbEngine?.save(dataArray)
+        if let location = locations.last {
+            self.lastSavedLocation = location
+        }
         self.notificationCenter.post(name: .actionAwareLocations, object: self)
     }
 
