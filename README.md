@@ -36,9 +36,11 @@ Class to hold the configuration of the sensor.
 + `sensorObserver: LocationsObserver?`: Callback for live data updates. (default = `nil`)
 + `sampleIntervalSeconds: Double`: How often to check the location, in seconds. By default, every 180 seconds. (default = `180`)
 + `accuracy: Int`: the minimum acceptable accuracy of GPS location, in meters. By default, 100 meters. (default = `100`)
++ `distanceFilter: Double`: The minimum distance, in meters, before Core Location sends another standard location update. Set `0` to disable distance filtering. (default = `0`)
 + `expirationTime: Int64`: the amount of elapsed time, in seconds, until the location is considered outdated. By default, 300 seconds. (default = `300`)
 + `saveAll: Bool`: Whether to save all the location updates or not. (default = `true`)
-+ `statusGps: Bool`: Whether to use continuous GPS location tracking. Significant-location-change monitoring (`startMonitoringSignificantLocationChanges`) is disabled; fine-grained tracking via `startUpdatingLocation` is used exclusively. (default = `true`)
++ `statusGps: Bool`: Whether to use continuous GPS location tracking via `startUpdatingLocation`. (default = `true`)
++ `statusSignificantLocationChanges: Bool`: Whether to also use significant-location-change monitoring as a background wake-up/recovery mechanism. Standard location updates remain enabled when `statusGps` is `true`. (default = `true`)
 + `enabled: Bool`: Sensor is enabled or not. (default = `false`)
 + `debug: Bool`: Enable/disable logging. (default = `false`)
 + `label: String`: Label for the data. (default = `""`)
@@ -104,6 +106,28 @@ Contains compass/heading data.
 | timezone        | Int    | Timezone of the device                                          |
 | os              | String | Operating system of the device (e.g., ios)                      |
 | jsonVersion     | Int    | JSON schema version                                             |
+
+### Location Event Data
+
+Contains Core Location lifecycle events, including authorization changes, failures, and pause/resume callbacks.
+
+| Field                 | Type   | Description                                                     |
+| --------------------- | ------ | --------------------------------------------------------------- |
+| eventType             | String | Event type: `authorization_changed`, `failed`, `paused`, or `resumed`. |
+| message               | String | Human-readable event detail.                                    |
+| errorDomain           | String | Error domain for failure events.                                |
+| errorCode             | Int    | Error code for failure events.                                  |
+| authorizationStatus   | String | Current Core Location authorization status.                     |
+| accuracyAuthorization | String | Current accuracy authorization on iOS 14 and later.             |
+| latitude              | Double | Last known latitude, if available.                              |
+| longitude             | Double | Last known longitude, if available.                             |
+| horizontalAccuracy    | Double | Last known horizontal accuracy, if available.                   |
+| deviceId              | String | AWARE device UUID                                               |
+| label                 | String | Customizable label. Useful for data calibration or traceability |
+| timestamp             | Int64  | Unixtime milliseconds since 1970                                |
+| timezone              | Int    | Timezone of the device                                          |
+| os                    | String | Operating system of the device (e.g., ios)                      |
+| jsonVersion           | Int    | JSON schema version                                             |
 
 ## Example Usage
 ```swift

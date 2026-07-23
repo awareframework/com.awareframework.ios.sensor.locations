@@ -44,6 +44,8 @@ class Tests: XCTestCase {
         XCTAssertEqual(sensor.CONFIG.expirationTime, 300)
         XCTAssertEqual(sensor.CONFIG.saveAll, true)
         XCTAssertEqual(sensor.CONFIG.statusLocationVisit, true)
+        XCTAssertEqual(sensor.CONFIG.distanceFilter, 0)
+        XCTAssertEqual(sensor.CONFIG.statusSignificantLocationChanges, true)
 
         // negative values are rejected
         sensor = LocationsSensor(LocationsSensor.Config().apply { config in
@@ -62,6 +64,8 @@ class Tests: XCTestCase {
         let expirationTime: Int64  = 100
         let saveAll            = true
         let statusLocationVisit = false
+        let distanceFilter: Double = 10
+        let statusSignificantLocationChanges = false
 
         sensor = LocationsSensor(LocationsSensor.Config().apply { config in
             config.statusGps            = statusGps
@@ -70,6 +74,8 @@ class Tests: XCTestCase {
             config.minGpsAccuracy       = minGpsAccuracy
             config.expirationTime       = expirationTime
             config.saveAll              = saveAll
+            config.distanceFilter        = distanceFilter
+            config.statusSignificantLocationChanges = statusSignificantLocationChanges
         })
         XCTAssertEqual(sensor.CONFIG.statusGps,           statusGps)
         XCTAssertEqual(sensor.CONFIG.sampleIntervalSeconds,        sampleIntervalSeconds)
@@ -77,6 +83,9 @@ class Tests: XCTestCase {
         XCTAssertEqual(sensor.CONFIG.expirationTime,      expirationTime)
         XCTAssertEqual(sensor.CONFIG.saveAll,             saveAll)
         XCTAssertEqual(sensor.CONFIG.statusLocationVisit, statusLocationVisit)
+        XCTAssertEqual(sensor.CONFIG.distanceFilter,      distanceFilter)
+        XCTAssertEqual(
+            sensor.CONFIG.statusSignificantLocationChanges, statusSignificantLocationChanges)
 
         // dictionary init
         var config: [String: Any] = [
@@ -85,7 +94,9 @@ class Tests: XCTestCase {
             "minGpsAccuracy": minGpsAccuracy,
             "expirationTime": expirationTime,
             "statusLocationVisit": statusLocationVisit,
-            "saveAll": saveAll
+            "saveAll": saveAll,
+            "distanceFilter": distanceFilter,
+            "statusSignificantLocationChanges": statusSignificantLocationChanges
         ]
         sensor = LocationsSensor(LocationsSensor.Config(config))
         XCTAssertEqual(sensor.CONFIG.statusGps,           statusGps)
@@ -94,6 +105,9 @@ class Tests: XCTestCase {
         XCTAssertEqual(sensor.CONFIG.expirationTime,      expirationTime)
         XCTAssertEqual(sensor.CONFIG.saveAll,             saveAll)
         XCTAssertEqual(sensor.CONFIG.statusLocationVisit, statusLocationVisit)
+        XCTAssertEqual(sensor.CONFIG.distanceFilter,      distanceFilter)
+        XCTAssertEqual(
+            sensor.CONFIG.statusSignificantLocationChanges, statusSignificantLocationChanges)
 
         // regions
         sensor = LocationsSensor()
@@ -161,6 +175,20 @@ class Tests: XCTestCase {
         XCTAssertEqual(dict["x"]               as? Double, 0)
         XCTAssertEqual(dict["y"]               as? Double, 0)
         XCTAssertEqual(dict["z"]               as? Double, 0)
+    }
+
+    func testLocationEventData() {
+        let data = LocationEventData()
+        let dict = data.toDictionary()
+        XCTAssertEqual(dict["eventType"] as? String, "")
+        XCTAssertEqual(dict["message"] as? String, "")
+        XCTAssertEqual(dict["errorDomain"] as? String, "")
+        XCTAssertEqual(dict["errorCode"] as? Int, 0)
+        XCTAssertEqual(dict["authorizationStatus"] as? String, "")
+        XCTAssertEqual(dict["accuracyAuthorization"] as? String, "")
+        XCTAssertEqual(dict["latitude"] as? Double, 0)
+        XCTAssertEqual(dict["longitude"] as? Double, 0)
+        XCTAssertEqual(dict["horizontalAccuracy"] as? Double, 0)
     }
 
     func testSyncModule() throws {

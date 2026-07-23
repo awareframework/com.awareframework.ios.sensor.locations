@@ -32,6 +32,8 @@ extension Notification.Name {
         LocationsSensor.ACTION_AWARE_LOCATIONS_VISIT)
     public static let actionAwareLocationsHeadingChanged = Notification.Name(
         LocationsSensor.ACTION_AWARE_LOCATIONS_HEADING_CHANGED)
+    public static let actionAwareLocationsEvent = Notification.Name(
+        LocationsSensor.ACTION_AWARE_LOCATIONS_EVENT)
 }
 
 public protocol LocationsObserver {
@@ -49,6 +51,7 @@ public class LocationsSensor: AwareSensor {
     var visitEngine: Engine? = nil
     var geofenceEngine: Engine? = nil
     var headingEngine: Engine? = nil
+    var eventEngine: Engine? = nil
 
     public var CONFIG: LocationsSensor.Config
 
@@ -70,6 +73,8 @@ public class LocationsSensor: AwareSensor {
 
     public static let ACTION_AWARE_LOCATIONS_HEADING_CHANGED =
         "ACTION_AWARE_LOCATIONS_HEADING_CHANGED"
+
+    public static let ACTION_AWARE_LOCATIONS_EVENT = "ACTION_AWARE_LOCATIONS_EVENT"
 
     /**
      * Fired event: GPS location is active
@@ -162,6 +167,8 @@ public class LocationsSensor: AwareSensor {
         public var regions: [CLRegion] = [CLRegion]()
 
         public var accuracy: CLLocationAccuracy? = nil
+        public var distanceFilter: CLLocationDistance = 0
+        public var statusSignificantLocationChanges = true
 
         // iOS does not provide the network based location service
         // var statusNetwork = true;
@@ -203,6 +210,15 @@ public class LocationsSensor: AwareSensor {
 
             if let heading = config["statusHeading"] as? Bool {
                 statusHeading = heading
+            }
+
+            if let significantLocationChanges = config["statusSignificantLocationChanges"] as? Bool
+            {
+                statusSignificantLocationChanges = significantLocationChanges
+            }
+
+            if let distanceFilter = config["distanceFilter"] as? Double {
+                self.distanceFilter = max(0, distanceFilter)
             }
 
             /// CLRegion
@@ -283,6 +299,7 @@ public class LocationsSensor: AwareSensor {
             try? VisitData.createTable(queue: queue)
             try? GeofenceData.createTable(queue: queue)
             try? HeadingData.createTable(queue: queue)
+            try? LocationEventData.createTable(queue: queue)
         }
 
         self.locationManager.delegate = self
@@ -298,6 +315,7 @@ public class LocationsSensor: AwareSensor {
         visitEngine = makeEngine(VisitData.databaseTableName)
         geofenceEngine = makeEngine(GeofenceData.databaseTableName)
         headingEngine = makeEngine(HeadingData.databaseTableName)
+        eventEngine = makeEngine(LocationEventData.databaseTableName)
 
         self.syncConfig = DbSyncConfig().apply { c in
             c.debug = config.debug
@@ -407,6 +425,7 @@ public class LocationsSensor: AwareSensor {
         visitEngine?.startSync(makeSyncConfig(VisitData.databaseTableName))
         geofenceEngine?.startSync(makeSyncConfig(GeofenceData.databaseTableName))
         headingEngine?.startSync(makeSyncConfig(HeadingData.databaseTableName))
+        eventEngine?.startSync(makeSyncConfig(LocationEventData.databaseTableName))
     }
 
     public override func set(label: String) {
@@ -421,7 +440,8 @@ public class LocationsSensor: AwareSensor {
         locationManager.pausesLocationUpdatesAutomatically = false
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         locationManager.allowsBackgroundLocationUpdates = true
-        locationManager.distanceFilter = CONFIG.minGpsAccuracy  // In meters.
+        locationManager.distanceFilter =
+            CONFIG.distanceFilter == 0 ? kCLDistanceFilterNone : CONFIG.distanceFilter
         // Configure and start the service.
         if #available(iOS 11.0, *) {
             locationManager.showsBackgroundLocationIndicator = false
@@ -449,7 +469,9 @@ public class LocationsSensor: AwareSensor {
 
         if self.CONFIG.statusGps {
             locationManager.startUpdatingLocation()
-            // locationManager.startMonitoringSignificantLocationChanges()
+            if self.CONFIG.statusSignificantLocationChanges {
+                locationManager.startMonitoringSignificantLocationChanges()
+            }
         }
 
         if self.CONFIG.statusLocationVisit {
@@ -468,7 +490,9 @@ public class LocationsSensor: AwareSensor {
     func stopLocationServices() {
         if self.CONFIG.statusGps {
             locationManager.stopUpdatingLocation()
-            // locationManager.stopMonitoringSignificantLocationChanges()
+            if self.CONFIG.statusSignificantLocationChanges {
+                locationManager.stopMonitoringSignificantLocationChanges()
+            }
         }
         if self.CONFIG.statusLocationVisit {
             locationManager.stopMonitoringVisits()
@@ -519,6 +543,65 @@ public class LocationsSensor: AwareSensor {
             }
         }
     }
+
+    private func saveLocationEvent(
+        type: String,
+        message: String = "",
+        error: Error? = nil,
+        status: CLAuthorizationStatus? = nil
+    ) {
+        var data = LocationEventData()
+        data.timestamp = Int64(Date().timeIntervalSince1970 * 1000)
+        data.label = self.CONFIG.label
+        data.eventType = type
+        data.message = message
+        if let error {
+            let nsError = error as NSError
+            data.errorDomain = nsError.domain
+            data.errorCode = nsError.code
+            if data.message.isEmpty {
+                data.message = nsError.localizedDescription
+            }
+        }
+        let resolvedStatus = status ?? currentAuthorizationStatus
+        data.authorizationStatus = Self.authorizationStatusLabel(resolvedStatus)
+        if #available(iOS 14.0, *) {
+            data.accuracyAuthorization = Self.accuracyAuthorizationLabel(
+                locationManager.accuracyAuthorization)
+        }
+        if let location = self.LAST_DATA ?? self.locationManager.location {
+            data.latitude = location.coordinate.latitude
+            data.longitude = location.coordinate.longitude
+            data.horizontalAccuracy = location.horizontalAccuracy
+        }
+        eventEngine?.save([data])
+        notificationCenter.post(
+            name: .actionAwareLocationsEvent,
+            object: self,
+            userInfo: data.toDictionary())
+    }
+
+    private static func authorizationStatusLabel(_ status: CLAuthorizationStatus) -> String {
+        switch status {
+        case .notDetermined: return "notDetermined"
+        case .restricted: return "restricted"
+        case .denied: return "denied"
+        case .authorizedAlways: return "authorizedAlways"
+        case .authorizedWhenInUse: return "authorizedWhenInUse"
+        @unknown default: return "unknown"
+        }
+    }
+
+    @available(iOS 14.0, *)
+    private static func accuracyAuthorizationLabel(_ authorization: CLAccuracyAuthorization)
+        -> String
+    {
+        switch authorization {
+        case .fullAccuracy: return "fullAccuracy"
+        case .reducedAccuracy: return "reducedAccuracy"
+        @unknown default: return "unknown"
+        }
+    }
 }
 
 extension LocationsSensor: CLLocationManagerDelegate {
@@ -537,6 +620,10 @@ extension LocationsSensor: CLLocationManagerDelegate {
     }
 
     private func handleAuthorizationStatus(_ status: CLAuthorizationStatus) {
+        saveLocationEvent(
+            type: "authorization_changed",
+            message: Self.authorizationStatusLabel(status),
+            status: status)
         switch status {
         case .authorizedAlways:
             self.start()
@@ -745,6 +832,17 @@ extension LocationsSensor: CLLocationManagerDelegate {
 
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         if self.CONFIG.debug { print(error) }
+        saveLocationEvent(type: "failed", error: error)
+    }
+
+    public func locationManagerDidPauseLocationUpdates(_ manager: CLLocationManager) {
+        if self.CONFIG.debug { print(#function) }
+        saveLocationEvent(type: "paused", message: "Core Location paused location updates")
+    }
+
+    public func locationManagerDidResumeLocationUpdates(_ manager: CLLocationManager) {
+        if self.CONFIG.debug { print(#function) }
+        saveLocationEvent(type: "resumed", message: "Core Location resumed location updates")
     }
 
 }
