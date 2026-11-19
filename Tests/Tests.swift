@@ -1,5 +1,23 @@
 import XCTest
+import CoreLocation
+import com_awareframework_ios_core
 @testable import com_awareframework_ios_sensor_locations
+
+/// Records the rows saved to it and whether they were saved on the main thread
+private final class RecordingEngine: Engine {
+    private let lock = NSLock()
+    private(set) var savedRows = 0
+    private(set) var savesOnMain = 0
+    // EngineConfig has no public initializer: borrow one from an engine the package builds
+    init() { super.init(Engine.Builder().build().config) }
+    override func save(_ data: [any BaseDbModelSQLite], completion: ((Error?) -> Void)?) {
+        lock.lock()
+        savedRows += data.count
+        if Thread.isMainThread { savesOnMain += 1 }
+        lock.unlock()
+        completion?(nil)
+    }
+}
 
 class Tests: XCTestCase {
 
@@ -189,6 +207,40 @@ class Tests: XCTestCase {
         XCTAssertEqual(dict["latitude"] as? Double, 0)
         XCTAssertEqual(dict["longitude"] as? Double, 0)
         XCTAssertEqual(dict["horizontalAccuracy"] as? Double, 0)
+    }
+
+    /// Locations are saved off the main thread, in order; the notification is still posted on the main thread
+    func testLocationsAreSavedOffMainAndNotifiedOnMain() {
+        let sensor = LocationsSensor()
+        let engine = RecordingEngine()
+        sensor.dbEngine = engine
+
+        var notifiedOnMain: [Bool] = []
+        let token = NotificationCenter.default.addObserver(forName: .actionAwareLocations, object: sensor, queue: nil) { _ in
+            notifiedOnMain.append(Thread.isMainThread)
+        }
+        let locations = (0..<5).map { CLLocation(latitude: 35.0 + Double($0) * 0.01, longitude: 139.0) }
+
+        // From the main thread, as Core Location calls the delegate
+        sensor.locationManager(sensor.locationManager, didUpdateLocations: Array(locations[0..<2]))
+        // From another thread
+        let done = expectation(description: "background delivery")
+        DispatchQueue.global().async {
+            sensor.locationManager(sensor.locationManager, didUpdateLocations: Array(locations[2..<5]))
+            done.fulfill()
+        }
+        wait(for: [done], timeout: 5)
+        // Let the main-thread notification from the background call run
+        let posted = expectation(description: "posted")
+        DispatchQueue.main.async { posted.fulfill() }
+        wait(for: [posted], timeout: 5)
+
+        sensor.waitForPendingSaves()
+        XCTAssertEqual(engine.savedRows, 5, "every location saved")
+        XCTAssertEqual(engine.savesOnMain, 0, "never saved on the main thread")
+        XCTAssertEqual(notifiedOnMain, [true, true], "notifications on the main thread")
+        XCTAssertEqual(sensor.LAST_DATA?.coordinate.latitude, locations[4].coordinate.latitude)
+        NotificationCenter.default.removeObserver(token)
     }
 
     func testSyncModule() throws {
