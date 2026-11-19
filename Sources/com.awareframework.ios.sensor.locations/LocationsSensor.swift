@@ -66,6 +66,34 @@ public class LocationsSensor: AwareSensor {
 
     private var lastSavedLocation: CLLocation?
 
+    /// Rows are written to the databases here, in the order they were received, not on the main
+    /// thread. Core Location calls the delegate on the thread that created `locationManager` (the
+    /// main thread), and heading updates can arrive many times a second.
+    private let saveQueue = DispatchQueue(
+        label: "com.awareframework.ios.sensor.locations.save", qos: .utility)
+
+    /// Saves `rows` to `engine` on `saveQueue`.
+    private func save(_ rows: [any BaseDbModelSQLite], to engine: Engine?) {
+        guard let engine, !rows.isEmpty else { return }
+        saveQueue.async { engine.save(rows) }
+    }
+
+    /// Waits until every row handed to `save(_:to:)` so far is written. For tests.
+    func waitForPendingSaves() {
+        saveQueue.sync {}
+    }
+
+    /// Posts a notification on the main thread (right away when already on it).
+    private func postOnMain(name: Notification.Name, object: Any?, userInfo: [AnyHashable: Any]? = nil) {
+        if Thread.isMainThread {
+            notificationCenter.post(name: name, object: object, userInfo: userInfo)
+        } else {
+            DispatchQueue.main.async {
+                self.notificationCenter.post(name: name, object: object, userInfo: userInfo)
+            }
+        }
+    }
+
     /**
      * Fired event: New location available
      */
@@ -369,7 +397,7 @@ public class LocationsSensor: AwareSensor {
                 self.saveLocationData()
             })
 
-        self.notificationCenter.post(name: .actionAwareLocationsStart, object: self)
+        postOnMain(name: .actionAwareLocationsStart, object: self)
     }
 
     private var currentAuthorizationStatus: CLAuthorizationStatus {
@@ -392,12 +420,12 @@ public class LocationsSensor: AwareSensor {
             t.invalidate()
             self.timer = nil
         }
-        self.notificationCenter.post(name: .actionAwareLocationsStop, object: self)
+        postOnMain(name: .actionAwareLocationsStop, object: self)
     }
 
     public override func sync(force: Bool = false) {
         if CONFIG.debug { print(LocationsSensor.TAG, "Start database sync") }
-        self.notificationCenter.post(name: .actionAwareLocationsSync, object: self)
+        postOnMain(name: .actionAwareLocationsSync, object: self)
 
         guard let baseConfig = self.syncConfig else { return }
         baseConfig.debug = self.CONFIG.debug
@@ -414,7 +442,7 @@ public class LocationsSensor: AwareSensor {
                         LocationsSensor.EXTRA_TABLE_NAME: tableName,
                     ]
                     if let e = error { userInfo[LocationsSensor.EXTRA_ERROR] = e }
-                    self.notificationCenter.post(
+                    self.postOnMain(
                         name: .actionAwareLocationsSyncCompletion,
                         object: self, userInfo: userInfo)
                 }
@@ -430,7 +458,7 @@ public class LocationsSensor: AwareSensor {
 
     public override func set(label: String) {
         self.CONFIG.label = label
-        self.notificationCenter.post(
+        postOnMain(
             name: .actionAwareLocationsSetLabel,
             object: self,
             userInfo: [LocationsSensor.EXTRA_LABEL: label])
@@ -574,8 +602,8 @@ public class LocationsSensor: AwareSensor {
             data.longitude = location.coordinate.longitude
             data.horizontalAccuracy = location.horizontalAccuracy
         }
-        eventEngine?.save([data])
-        notificationCenter.post(
+        save([data], to: eventEngine)
+        postOnMain(
             name: .actionAwareLocationsEvent,
             object: self,
             userInfo: data.toDictionary())
@@ -703,11 +731,11 @@ extension LocationsSensor: CLLocationManagerDelegate {
                 observer.onLocationChanged(data: data)
             }
         }
-        dbEngine?.save(dataArray)
+        save(dataArray, to: dbEngine)
         if let location = locations.last {
             self.lastSavedLocation = location
         }
-        self.notificationCenter.post(name: .actionAwareLocations, object: self)
+        postOnMain(name: .actionAwareLocations, object: self)
     }
 
     public func locationManager(_ manager: CLLocationManager, didVisit visit: CLVisit) {
@@ -745,11 +773,11 @@ extension LocationsSensor: CLLocationManagerDelegate {
 
             if self.CONFIG.debug { print(data) }
 
-            self.visitEngine?.save([data])
+            self.save([data], to: self.visitEngine)
             if let observer = self.CONFIG.sensorObserver {
                 observer.onVisit(data: data)
             }
-            self.notificationCenter.post(
+            self.postOnMain(
                 name: .actionAwareLocationsVisit,
                 object: self,
                 userInfo: [LocationsSensor.EXTRA_LABEL: visit])
@@ -774,11 +802,11 @@ extension LocationsSensor: CLLocationManagerDelegate {
         if let observer = self.CONFIG.sensorObserver {
             observer.onHeadingChanged(data: data)
         }
-        self.notificationCenter.post(
+        postOnMain(
             name: .actionAwareLocationsHeadingChanged,
             object: self,
             userInfo: [LocationsSensor.EXTRA_LABEL: newHeading])
-        headingEngine?.save([data])
+        save([data], to: headingEngine)
         if self.CONFIG.debug { print(data) }
 
     }
@@ -799,8 +827,8 @@ extension LocationsSensor: CLLocationManagerDelegate {
         if let observer = self.CONFIG.sensorObserver {
             observer.onEnterRegion(data: data)
         }
-        geofenceEngine?.save([data])
-        self.notificationCenter.post(
+        save([data], to: geofenceEngine)
+        postOnMain(
             name: .actionAwareLocationsEnterRegion,
             object: self,
             userInfo: [LocationsSensor.EXTRA_LABEL: region.identifier])
@@ -823,8 +851,8 @@ extension LocationsSensor: CLLocationManagerDelegate {
         if let observer = self.CONFIG.sensorObserver {
             observer.onExitRegion(data: data)
         }
-        geofenceEngine?.save([data])
-        self.notificationCenter.post(
+        save([data], to: geofenceEngine)
+        postOnMain(
             name: .actionAwareLocationsExitRegion,
             object: self,
             userInfo: [LocationsSensor.EXTRA_LABEL: region.identifier])
