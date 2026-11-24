@@ -44,6 +44,104 @@ public protocol LocationsObserver {
     func onHeadingChanged(data: HeadingData)
 }
 
+/// Delivers the first value immediately, then coalesces values received inside the minimum
+/// interval and delivers only the latest one at the trailing edge.
+final class LatestValueTrailingThrottle<Value: Sendable>: @unchecked Sendable {
+    private let deliveryQueue: DispatchQueue
+    private let queueKey = DispatchSpecificKey<UInt8>()
+    private let queueMarker: UInt8 = 1
+    private let monotonicNow: () -> TimeInterval
+    private let delivery: (Value) -> Void
+
+    private var lastDeliveryTime: TimeInterval?
+    private var pendingValue: Value?
+    private var pendingWorkItem: DispatchWorkItem?
+    private var generation: UInt64 = 0
+
+    init(
+        deliveryQueue: DispatchQueue,
+        monotonicNow: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
+        delivery: @escaping (Value) -> Void
+    ) {
+        self.deliveryQueue = deliveryQueue
+        self.monotonicNow = monotonicNow
+        self.delivery = delivery
+        deliveryQueue.setSpecific(key: queueKey, value: queueMarker)
+    }
+
+    func submit(_ value: Value, minimumInterval: TimeInterval) {
+        performSynchronously { [self] in
+            submitOnDeliveryQueue(value, minimumInterval: minimumInterval)
+        }
+    }
+
+    func reset() {
+        performSynchronously { [self] in
+            generation &+= 1
+            pendingWorkItem?.cancel()
+            pendingWorkItem = nil
+            pendingValue = nil
+            lastDeliveryTime = nil
+        }
+    }
+
+    private func submitOnDeliveryQueue(_ value: Value, minimumInterval: TimeInterval) {
+        let interval = max(0, minimumInterval)
+        let now = monotonicNow()
+        let elapsed = lastDeliveryTime.map { now - $0 }
+
+        if interval > 0, let elapsed, elapsed >= 0, elapsed < interval {
+            pendingValue = value
+            if pendingWorkItem == nil {
+                generation &+= 1
+                let scheduledGeneration = generation
+                let workItem = DispatchWorkItem { [weak self] in
+                    self?.deliverPendingValue(generation: scheduledGeneration)
+                }
+                pendingWorkItem = workItem
+                deliveryQueue.asyncAfter(
+                    deadline: .now() + (interval - elapsed),
+                    execute: workItem)
+            }
+        } else {
+            generation &+= 1
+            pendingWorkItem?.cancel()
+            pendingWorkItem = nil
+            pendingValue = nil
+            lastDeliveryTime = now
+            delivery(value)
+        }
+    }
+
+    private func deliverPendingValue(generation scheduledGeneration: UInt64) {
+        guard generation == scheduledGeneration, let pendingValue else { return }
+        self.pendingValue = nil
+        pendingWorkItem = nil
+        lastDeliveryTime = monotonicNow()
+        delivery(pendingValue)
+    }
+
+    private func performSynchronously(_ work: @escaping @Sendable () -> Void) {
+        if DispatchQueue.getSpecific(key: queueKey) == queueMarker {
+            work()
+        } else {
+            deliveryQueue.sync(execute: work)
+        }
+    }
+}
+
+private struct SendableHeading: @unchecked Sendable {
+    let value: CLHeading
+}
+
+private final class WeakReference<Object: AnyObject>: @unchecked Sendable {
+    weak var value: Object?
+
+    init(_ value: Object) {
+        self.value = value
+    }
+}
+
 public class LocationsSensor: AwareSensor {
 
     public let locationManager = CLLocationManager()
@@ -65,6 +163,11 @@ public class LocationsSensor: AwareSensor {
     public var LAST_HEADING: CLHeading?
 
     private var lastSavedLocation: CLLocation?
+    private lazy var headingTimeFilter = LatestValueTrailingThrottle<SendableHeading>(
+        deliveryQueue: .main
+    ) { [weak self] heading in
+        self?.processHeading(heading.value)
+    }
 
     /// Rows are written to the databases here, in the order they were received, not on the main
     /// thread. Core Location calls the delegate on the thread that created `locationManager` (the
@@ -157,7 +260,27 @@ public class LocationsSensor: AwareSensor {
         public var geoFences: String? = nil  // TODO: convert the value to CLRegion
         public var statusGps = true
         public var statusLocationVisit = true
-        public var statusHeading = true
+        public var statusHeading = false
+        public var headingFilterDegrees: CLLocationDegrees = 10 {
+            didSet {
+                if !headingFilterDegrees.isFinite || !(0...360).contains(headingFilterDegrees) {
+                    print(
+                        "[LocationsSensor][Illegal Parameter] The 'headingFilterDegrees' value has to be between 0 and 360. ",
+                        "This parameter (\(headingFilterDegrees)) is ignored.")
+                    headingFilterDegrees = oldValue
+                }
+            }
+        }
+        public var headingFilterSeconds: TimeInterval = 1 {
+            didSet {
+                if !headingFilterSeconds.isFinite || headingFilterSeconds < 0 {
+                    print(
+                        "[LocationsSensor][Illegal Parameter] The 'headingFilterSeconds' value has to be greater than or equal to 0. ",
+                        "This parameter (\(headingFilterSeconds)) is ignored.")
+                    headingFilterSeconds = oldValue
+                }
+            }
+        }
         public var sampleIntervalSeconds: Double = 180 {
             didSet {
                 if self.sampleIntervalSeconds <= 0 {
@@ -238,6 +361,14 @@ public class LocationsSensor: AwareSensor {
 
             if let heading = config["statusHeading"] as? Bool {
                 statusHeading = heading
+            }
+
+            if let headingFilterDegrees = config["headingFilterDegrees"] as? Double {
+                self.headingFilterDegrees = headingFilterDegrees
+            }
+
+            if let headingFilterSeconds = config["headingFilterSeconds"] as? Double {
+                self.headingFilterSeconds = headingFilterSeconds
             }
 
             if let significantLocationChanges = config["statusSignificantLocationChanges"] as? Bool
@@ -331,6 +462,7 @@ public class LocationsSensor: AwareSensor {
         }
 
         self.locationManager.delegate = self
+        applyHeadingAngleFilter()
 
         let makeEngine = { (tableName: String) -> Engine in
             Engine.Builder()
@@ -355,6 +487,8 @@ public class LocationsSensor: AwareSensor {
     }
 
     public override func start() {
+        resetHeadingTimeFilter()
+        applyHeadingAngleFilter()
 
         switch currentAuthorizationStatus {
         case .notDetermined:
@@ -404,7 +538,10 @@ public class LocationsSensor: AwareSensor {
         if #available(iOS 14.0, *) {
             return locationManager.authorizationStatus
         }
-        return CLLocationManager.authorizationStatus()
+        if #unavailable(iOS 14.0) {
+            return CLLocationManager.authorizationStatus()
+        }
+        preconditionFailure("Unsupported iOS version")
     }
 
     private func requestAlwaysAuthorizationIfNeeded() {
@@ -416,6 +553,7 @@ public class LocationsSensor: AwareSensor {
     public override func stop() {
         if CONFIG.debug { print(LocationsSensor.TAG, "Stop location services") }
         self.stopLocationServices()
+        resetHeadingTimeFilter()
         if let t = self.timer {
             t.invalidate()
             self.timer = nil
@@ -507,6 +645,7 @@ public class LocationsSensor: AwareSensor {
         }
 
         if self.CONFIG.statusHeading {
+            applyHeadingAngleFilter()
             locationManager.startUpdatingHeading()
         }
 
@@ -533,6 +672,17 @@ public class LocationsSensor: AwareSensor {
         for region in self.CONFIG.regions {
             locationManager.stopMonitoring(for: region)
         }
+    }
+
+    private func applyHeadingAngleFilter() {
+        locationManager.headingFilter =
+            CONFIG.headingFilterDegrees == 0
+            ? kCLHeadingFilterNone
+            : CONFIG.headingFilterDegrees
+    }
+
+    func resetHeadingTimeFilter() {
+        headingTimeFilter.reset()
     }
 
     func saveLocationData() {
@@ -788,8 +938,25 @@ extension LocationsSensor: CLLocationManagerDelegate {
     public func locationManager(
         _ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading
     ) {
-        // TODO: development
-        self.LAST_HEADING = newHeading
+        let heading = SendableHeading(value: newHeading)
+        if Thread.isMainThread {
+            receiveHeading(heading)
+        } else {
+            let sensor = WeakReference(self)
+            DispatchQueue.main.async {
+                sensor.value?.receiveHeading(heading)
+            }
+        }
+    }
+
+    private func receiveHeading(_ heading: SendableHeading) {
+        self.LAST_HEADING = heading.value
+        headingTimeFilter.submit(
+            heading,
+            minimumInterval: CONFIG.headingFilterSeconds)
+    }
+
+    private func processHeading(_ newHeading: CLHeading) {
         // needleView.transform = CGAffineTransform.init(rotationAngle: CGFloat(-newHeading.magneticHeading) * CGFloat.pi / 180)
         var data = HeadingData()
         data.magneticHeading = newHeading.magneticHeading
@@ -808,7 +975,6 @@ extension LocationsSensor: CLLocationManagerDelegate {
             userInfo: [LocationsSensor.EXTRA_LABEL: newHeading])
         save([data], to: headingEngine)
         if self.CONFIG.debug { print(data) }
-
     }
 
     public func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
