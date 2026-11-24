@@ -568,6 +568,12 @@ public class LocationsSensor: AwareSensor {
         guard let baseConfig = self.syncConfig else { return }
         baseConfig.debug = self.CONFIG.debug
 
+        // Auxiliary table engines are created with the sensor. Refresh their host because clients
+        // can apply the upload server later without recreating the LocationsSensor instance.
+        [visitEngine, geofenceEngine, headingEngine, eventEngine].forEach {
+            $0?.config.host = self.CONFIG.dbHost
+        }
+
         let makeSyncConfig = { (tableName: String) -> DbSyncConfig in
             DbSyncConfig().apply { c in
                 c.debug = baseConfig.debug
