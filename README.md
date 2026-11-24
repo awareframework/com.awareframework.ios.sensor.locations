@@ -42,7 +42,10 @@ Class to hold the configuration of the sensor.
 + `saveAll: Bool`: Whether to save all the location updates or not. (default = `true`)
 + `statusGps: Bool`: Whether to use continuous GPS location tracking via `startUpdatingLocation`. (default = `true`)
 + `statusLocationVisit: Bool`: Whether to monitor visits (`startMonitoringVisits`). Visits are saved to the `ios_visit` table, with a reverse-geocoded address when available. (default = `true`)
-+ `statusHeading: Bool`: Whether to record compass heading updates (`startUpdatingHeading`). Headings are saved to the `ios_heading` table. (default = `true`)
++ `statusHeading: Bool`: Whether to record compass heading updates (`startUpdatingHeading`). Headings are saved to the `ios_heading` table. (default = `false`)
++ `headingFilterDegrees: CLLocationDegrees`: The minimum heading change, in degrees, before Core Location delivers another heading update. Set `0` to disable the angle filter. Values below `0` or above `360` are ignored. (default = `10`)
++ `headingFilterSeconds: TimeInterval`: The minimum elapsed time, in seconds, between saved heading updates. Set `0` to disable the time filter. Negative values are ignored. (default = `1`)
+
 + `statusSignificantLocationChanges: Bool`: Whether to also use significant-location-change monitoring as a background wake-up/recovery mechanism. Standard location updates remain enabled when `statusGps` is `true`. (default = `true`)
 + `enabled: Bool`: Sensor is enabled or not. (default = `false`)
 + `debug: Bool`: Enable/disable logging. (default = `false`)
@@ -52,6 +55,8 @@ Class to hold the configuration of the sensor.
 + `dbType: DatabaseType`: Which db engine to use for saving data. (default = `.none`)
 + `dbPath: String`: Path of the database. (default = `"aware_locations"`)
 + `dbHost: String?`: Host for syncing the database. (default = `nil`)
+
+The first heading after starting the sensor is saved immediately. Later updates received inside `headingFilterSeconds` are coalesced, and only the latest pending heading is saved at the end of the interval. The original heading measurement timestamp is preserved.
 
 ## Broadcasts
 

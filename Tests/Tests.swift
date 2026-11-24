@@ -62,6 +62,10 @@ class Tests: XCTestCase {
         XCTAssertEqual(sensor.CONFIG.expirationTime, 300)
         XCTAssertEqual(sensor.CONFIG.saveAll, true)
         XCTAssertEqual(sensor.CONFIG.statusLocationVisit, true)
+        XCTAssertEqual(sensor.CONFIG.statusHeading, false)
+        XCTAssertEqual(sensor.CONFIG.headingFilterDegrees, 10)
+        XCTAssertEqual(sensor.CONFIG.headingFilterSeconds, 1)
+        XCTAssertEqual(sensor.locationManager.headingFilter, 10)
         XCTAssertEqual(sensor.CONFIG.distanceFilter, 0)
         XCTAssertEqual(sensor.CONFIG.statusSignificantLocationChanges, true)
 
@@ -70,10 +74,15 @@ class Tests: XCTestCase {
             config.sampleIntervalSeconds    = -10
             config.minGpsAccuracy  = -100
             config.expirationTime  = -10
+            config.headingFilterDegrees = -10
+            config.headingFilterDegrees = 361
+            config.headingFilterSeconds = -1
         })
         XCTAssertEqual(sensor.CONFIG.sampleIntervalSeconds,   180)
         XCTAssertEqual(sensor.CONFIG.minGpsAccuracy, 100)
         XCTAssertEqual(sensor.CONFIG.expirationTime, 300)
+        XCTAssertEqual(sensor.CONFIG.headingFilterDegrees, 10)
+        XCTAssertEqual(sensor.CONFIG.headingFilterSeconds, 1)
 
         // apply closure
         let statusGps          = false
@@ -82,12 +91,18 @@ class Tests: XCTestCase {
         let expirationTime: Int64  = 100
         let saveAll            = true
         let statusLocationVisit = false
+        let statusHeading = true
+        let headingFilterDegrees: CLLocationDegrees = 25
+        let headingFilterSeconds: TimeInterval = 2.5
         let distanceFilter: Double = 10
         let statusSignificantLocationChanges = false
 
         sensor = LocationsSensor(LocationsSensor.Config().apply { config in
             config.statusGps            = statusGps
             config.statusLocationVisit  = statusLocationVisit
+            config.statusHeading        = statusHeading
+            config.headingFilterDegrees = headingFilterDegrees
+            config.headingFilterSeconds = headingFilterSeconds
             config.sampleIntervalSeconds         = sampleIntervalSeconds
             config.minGpsAccuracy       = minGpsAccuracy
             config.expirationTime       = expirationTime
@@ -101,17 +116,24 @@ class Tests: XCTestCase {
         XCTAssertEqual(sensor.CONFIG.expirationTime,      expirationTime)
         XCTAssertEqual(sensor.CONFIG.saveAll,             saveAll)
         XCTAssertEqual(sensor.CONFIG.statusLocationVisit, statusLocationVisit)
+        XCTAssertEqual(sensor.CONFIG.statusHeading, statusHeading)
+        XCTAssertEqual(sensor.CONFIG.headingFilterDegrees, headingFilterDegrees)
+        XCTAssertEqual(sensor.CONFIG.headingFilterSeconds, headingFilterSeconds)
+        XCTAssertEqual(sensor.locationManager.headingFilter, headingFilterDegrees)
         XCTAssertEqual(sensor.CONFIG.distanceFilter,      distanceFilter)
         XCTAssertEqual(
             sensor.CONFIG.statusSignificantLocationChanges, statusSignificantLocationChanges)
 
         // dictionary init
-        var config: [String: Any] = [
+        let config: [String: Any] = [
             "statusGps": statusGps,
             "sampleIntervalSeconds": sampleIntervalSeconds,
             "minGpsAccuracy": minGpsAccuracy,
             "expirationTime": expirationTime,
             "statusLocationVisit": statusLocationVisit,
+            "statusHeading": statusHeading,
+            "headingFilterDegrees": headingFilterDegrees,
+            "headingFilterSeconds": headingFilterSeconds,
             "saveAll": saveAll,
             "distanceFilter": distanceFilter,
             "statusSignificantLocationChanges": statusSignificantLocationChanges
@@ -123,6 +145,10 @@ class Tests: XCTestCase {
         XCTAssertEqual(sensor.CONFIG.expirationTime,      expirationTime)
         XCTAssertEqual(sensor.CONFIG.saveAll,             saveAll)
         XCTAssertEqual(sensor.CONFIG.statusLocationVisit, statusLocationVisit)
+        XCTAssertEqual(sensor.CONFIG.statusHeading, statusHeading)
+        XCTAssertEqual(sensor.CONFIG.headingFilterDegrees, headingFilterDegrees)
+        XCTAssertEqual(sensor.CONFIG.headingFilterSeconds, headingFilterSeconds)
+        XCTAssertEqual(sensor.locationManager.headingFilter, headingFilterDegrees)
         XCTAssertEqual(sensor.CONFIG.distanceFilter,      distanceFilter)
         XCTAssertEqual(
             sensor.CONFIG.statusSignificantLocationChanges, statusSignificantLocationChanges)
@@ -145,6 +171,97 @@ class Tests: XCTestCase {
 
         sensor.CONFIG.removeRegion(identifier: "nonexistent")
         XCTAssertEqual(sensor.CONFIG.regions.count, 3)
+    }
+
+    func testHeadingAngleFilterCanBeDisabled() {
+        let sensor = LocationsSensor(LocationsSensor.Config().apply { config in
+            config.headingFilterDegrees = 0
+        })
+
+        XCTAssertEqual(sensor.CONFIG.headingFilterDegrees, 0)
+        XCTAssertEqual(sensor.locationManager.headingFilter, kCLHeadingFilterNone)
+    }
+
+    func testHeadingTimeFilterDeliversLatestValueAtTrailingEdge() {
+        let delivered = expectation(description: "leading and trailing values delivered")
+        delivered.expectedFulfillmentCount = 2
+        var values: [Int] = []
+        let filter = LatestValueTrailingThrottle<Int>(
+            deliveryQueue: .main,
+            monotonicNow: { 100 }
+        ) { value in
+            values.append(value)
+            delivered.fulfill()
+        }
+
+        filter.submit(1, minimumInterval: 0.05)
+        filter.submit(2, minimumInterval: 0.05)
+        filter.submit(3, minimumInterval: 0.05)
+
+        wait(for: [delivered], timeout: 1)
+        XCTAssertEqual(values, [1, 3], "Only the latest pending value is delivered")
+    }
+
+    func testHeadingTimeFilterCanBeDisabled() {
+        var values: [Int] = []
+        let filter = LatestValueTrailingThrottle<Int>(deliveryQueue: .main) { value in
+            values.append(value)
+        }
+
+        filter.submit(1, minimumInterval: 0)
+        filter.submit(2, minimumInterval: 0)
+        filter.submit(3, minimumInterval: 0)
+
+        XCTAssertEqual(values, [1, 2, 3])
+    }
+
+    func testResetCancelsPendingHeading() {
+        let trailingValue = expectation(description: "pending value is cancelled")
+        trailingValue.isInverted = true
+        var values: [Int] = []
+        let filter = LatestValueTrailingThrottle<Int>(
+            deliveryQueue: .main,
+            monotonicNow: { 100 }
+        ) { value in
+            values.append(value)
+            if value == 2 {
+                trailingValue.fulfill()
+            }
+        }
+
+        filter.submit(1, minimumInterval: 0.05)
+        filter.submit(2, minimumInterval: 0.05)
+        filter.reset()
+        filter.submit(3, minimumInterval: 0.05)
+
+        wait(for: [trailingValue], timeout: 0.1)
+        XCTAssertEqual(
+            values, [1, 3],
+            "Reset cancels pending work and restarts with an immediate value")
+    }
+
+    func testNewHeadingAfterIntervalSupersedesPendingDelivery() {
+        let staleValue = expectation(description: "stale pending value is not delivered")
+        staleValue.isInverted = true
+        var now: TimeInterval = 100
+        var values: [Int] = []
+        let filter = LatestValueTrailingThrottle<Int>(
+            deliveryQueue: .main,
+            monotonicNow: { now }
+        ) { value in
+            values.append(value)
+            if value == 2 {
+                staleValue.fulfill()
+            }
+        }
+
+        filter.submit(1, minimumInterval: 0.05)
+        filter.submit(2, minimumInterval: 0.05)
+        now += 1
+        filter.submit(3, minimumInterval: 0.05)
+
+        wait(for: [staleValue], timeout: 0.1)
+        XCTAssertEqual(values, [1, 3], "The newer immediate value cancels stale trailing work")
     }
 
     func testLocationsData() {
