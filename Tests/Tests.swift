@@ -450,6 +450,71 @@ class Tests: XCTestCase {
         XCTAssertEqual(sensor.saveDistanceThreshold, sensor.CONFIG.minGpsAccuracy)
     }
 
+    /// Locations are kept in memory and written together, not one transaction per update
+    func testLocationsAreBufferedUntilFlush() {
+        let sensor = LocationsSensor(LocationsSensor.Config().apply {
+            $0.saveAll = true
+            $0.saveIntervalSeconds = 60
+        })
+        let engine = RecordingEngine()
+        sensor.dbEngine = engine
+        let observed = expectation(description: "observer called for every location")
+        observed.expectedFulfillmentCount = 3
+        let observer = RecordingObserver { _ in observed.fulfill() }
+        sensor.CONFIG.sensorObserver = observer
+
+        for location in track([0, 200, 400]) {
+            sensor.locationManager(sensor.locationManager, didUpdateLocations: [location])
+        }
+        wait(for: [observed], timeout: 1)   // observers are not delayed by the buffer
+        sensor.waitForPendingSavesWithoutFlushing()
+        XCTAssertEqual(engine.savedRows, 0, "nothing written before the save interval")
+
+        sensor.waitForPendingSaves()
+        XCTAssertEqual(engine.savedRows, 3, "every buffered location written")
+        XCTAssertEqual(engine.savesOnMain, 0, "never written on the main thread")
+        sensor.waitForPendingSaves()
+        XCTAssertEqual(engine.savedRows, 3, "rows are written once")
+    }
+
+    /// saveIntervalSeconds = 0: every location is written right away
+    func testZeroSaveIntervalWritesImmediately() {
+        let sensor = LocationsSensor(LocationsSensor.Config().apply {
+            $0.saveAll = true
+            $0.saveIntervalSeconds = 0
+        })
+        let engine = RecordingEngine()
+        sensor.dbEngine = engine
+        for location in track([0, 200]) {
+            sensor.locationManager(sensor.locationManager, didUpdateLocations: [location])
+        }
+        sensor.waitForPendingSavesWithoutFlushing()
+        XCTAssertEqual(engine.savedRows, 2)
+    }
+
+    /// A full buffer is written without waiting for the save interval
+    func testFullBufferIsWritten() {
+        let sensor = LocationsSensor(LocationsSensor.Config().apply {
+            $0.saveAll = true
+            $0.saveIntervalSeconds = 3_600
+        })
+        let engine = RecordingEngine()
+        sensor.dbEngine = engine
+        let points = track((0..<LocationsSensor.maxBufferedRows).map { Double($0) })
+        sensor.locationManager(sensor.locationManager, didUpdateLocations: points)
+        sensor.waitForPendingSavesWithoutFlushing()
+        XCTAssertEqual(engine.savedRows, LocationsSensor.maxBufferedRows)
+    }
+
+    func testSaveIntervalConfig() {
+        let config = LocationsSensor.Config()
+        XCTAssertEqual(config.saveIntervalSeconds, 60)
+        config.set(config: ["saveIntervalSeconds": 30.0])
+        XCTAssertEqual(config.saveIntervalSeconds, 30)
+        config.saveIntervalSeconds = -1   // ignored
+        XCTAssertEqual(config.saveIntervalSeconds, 30)
+    }
+
     func testSyncModule() throws {
         throw XCTSkip("Sync integration test requires external server configuration.")
     }

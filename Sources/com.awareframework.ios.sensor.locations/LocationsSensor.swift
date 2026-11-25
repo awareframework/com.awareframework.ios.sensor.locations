@@ -175,15 +175,137 @@ public class LocationsSensor: AwareSensor {
     private let saveQueue = DispatchQueue(
         label: "com.awareframework.ios.sensor.locations.save", qos: .utility)
 
-    /// Saves `rows` to `engine` on `saveQueue`.
+    /// Upper bound of rows kept in memory per table; a buffer this full is written at once.
+    static let maxBufferedRows = 1_000
+
+    /// Rows waiting to be written, per engine. Only touched on `saveQueue`.
+    private var bufferedRows: [ObjectIdentifier: (engine: Engine, rows: [any BaseDbModelSQLite])] = [:]
+    /// When the buffers were last written (`systemUptime`). Only touched on `saveQueue`.
+    private var lastFlushUptime = ProcessInfo.processInfo.systemUptime
+    /// Writes the buffers every `saveIntervalSeconds` while the sensor runs. Only touched on `saveQueue`.
+    private var flushTimer: DispatchSourceTimer?
+    private var lifecycleObservers: [NSObjectProtocol] = []
+
+    /// Saves `rows` to `engine` on `saveQueue` right away.
     private func save(_ rows: [any BaseDbModelSQLite], to engine: Engine?) {
         guard let engine, !rows.isEmpty else { return }
         saveQueue.async { engine.save(rows) }
     }
 
-    /// Waits until every row handed to `save(_:to:)` so far is written. For tests.
+    /// Keeps `rows` in memory and writes them to `engine` together with the other buffered rows
+    /// every `saveIntervalSeconds` (one transaction per table instead of one per update).
+    /// `saveIntervalSeconds = 0` writes them right away.
+    private func saveBuffered(_ rows: [any BaseDbModelSQLite], to engine: Engine?) {
+        guard let engine, !rows.isEmpty else { return }
+        let interval = CONFIG.saveIntervalSeconds
+        guard interval > 0 else {
+            save(rows, to: engine)
+            return
+        }
+        saveQueue.async { [self] in
+            let key = ObjectIdentifier(engine)
+            var entry = bufferedRows[key] ?? (engine: engine, rows: [])
+            entry.rows.append(contentsOf: rows)
+            bufferedRows[key] = entry
+            // The timer does not fire while the app is suspended; a location update that wakes
+            // it up writes rows that are already due.
+            let due = ProcessInfo.processInfo.systemUptime - lastFlushUptime >= interval
+            if due || entry.rows.count >= Self.maxBufferedRows {
+                flushBufferedRowsOnSaveQueue()
+            }
+        }
+    }
+
+    /// Writes every buffered row. Call it on `saveQueue`.
+    private func flushBufferedRowsOnSaveQueue() {
+        lastFlushUptime = ProcessInfo.processInfo.systemUptime
+        let pending = bufferedRows
+        bufferedRows.removeAll()
+        for (_, entry) in pending where !entry.rows.isEmpty {
+            entry.engine.save(entry.rows)
+            if CONFIG.debug {
+                print(LocationsSensor.TAG, "Saved \(entry.rows.count) buffered rows")
+            }
+        }
+    }
+
+    /// Writes the buffered locations and headings to the databases now, off the calling thread.
+    /// `completion` is called on `saveQueue` once they are written.
+    public func flushBufferedData(completion: (() -> Void)? = nil) {
+        saveQueue.async { [self] in
+            flushBufferedRowsOnSaveQueue()
+            completion?()
+        }
+    }
+
+    /// Writes the buffered rows and waits until they are written. `saveQueue.sync` runs the block
+    /// on the calling thread, so this writes on the main thread when called there: only for the
+    /// app terminating, when the rows have to be written before returning.
+    private func flushBufferedDataAndWait() {
+        saveQueue.sync { flushBufferedRowsOnSaveQueue() }
+    }
+
+    /// Writes the buffered rows and waits until every row handed over so far is written. For tests.
     func waitForPendingSaves() {
+        flushBufferedData()
         saveQueue.sync {}
+    }
+
+    /// Waits until the rows handed to `saveQueue` so far are handled, leaving the buffers as they
+    /// are. For tests.
+    func waitForPendingSavesWithoutFlushing() {
+        saveQueue.sync {}
+    }
+
+    private func startFlushTimer() {
+        let interval = CONFIG.saveIntervalSeconds
+        saveQueue.async { [weak self] in
+            guard let self else { return }
+            self.flushTimer?.cancel()
+            self.flushTimer = nil
+            guard interval > 0 else { return }
+            let timer = DispatchSource.makeTimerSource(queue: self.saveQueue)
+            timer.schedule(
+                deadline: .now() + interval, repeating: interval,
+                leeway: .milliseconds(Int(min(interval * 100, 10_000))))  // 10 %, at most 10 s
+            timer.setEventHandler { [weak self] in self?.flushBufferedRowsOnSaveQueue() }
+            self.flushTimer = timer
+            timer.resume()
+        }
+    }
+
+    private func stopFlushTimer() {
+        saveQueue.async { [weak self] in
+            self?.flushTimer?.cancel()
+            self?.flushTimer = nil
+        }
+    }
+
+    /// Writes the buffers when the app may be suspended or terminated, so they are not lost.
+    private func observeAppLifecycle() {
+        let center = NotificationCenter.default
+        lifecycleObservers.append(
+            center.addObserver(
+                forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil
+            ) { [weak self] _ in
+                self?.flushBufferedData()
+            })
+        lifecycleObservers.append(
+            center.addObserver(
+                forName: UIApplication.willTerminateNotification, object: nil, queue: nil
+            ) { [weak self] _ in
+                self?.flushBufferedDataAndWait()
+            })
+    }
+
+    deinit {
+        lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        flushTimer?.cancel()
+        // Rows still buffered are written by `saveQueue` after the sensor is gone
+        let pending = bufferedRows
+        saveQueue.async {
+            for (_, entry) in pending where !entry.rows.isEmpty { entry.engine.save(entry.rows) }
+        }
     }
 
     /// Posts a notification on the main thread (right away when already on it).
@@ -291,6 +413,19 @@ public class LocationsSensor: AwareSensor {
                 }
             }
         }
+        /// Locations and headings are kept in memory and written to the database together at this
+        /// interval (seconds), also when the sensor stops, syncs, or the app goes to the background.
+        /// 0: every row is written right away.
+        public var saveIntervalSeconds: Double = 60 {
+            didSet {
+                if !saveIntervalSeconds.isFinite || saveIntervalSeconds < 0 {
+                    print(
+                        "[LocationsSensor][Illegal Parameter] The 'saveIntervalSeconds' value has to be greater than or equal to 0. ",
+                        "This parameter (\(saveIntervalSeconds)) is ignored.")
+                    saveIntervalSeconds = oldValue
+                }
+            }
+        }
         /// Core Location reports a new location only after the device moved this far (meters).
         /// 0: every update (`kCLDistanceFilterNone`, the default of Core Location). With
         /// `saveAll = false`, a location is saved after a move of this distance when it is set
@@ -357,6 +492,10 @@ public class LocationsSensor: AwareSensor {
 
             if let sampleIntervalSeconds = config["sampleIntervalSeconds"] as? Double {
                 self.sampleIntervalSeconds = sampleIntervalSeconds
+            }
+
+            if let saveIntervalSeconds = config["saveIntervalSeconds"] as? Double {
+                self.saveIntervalSeconds = saveIntervalSeconds
             }
 
             if let minGps = config["minGpsAccuracy"] as? Double {
@@ -500,6 +639,8 @@ public class LocationsSensor: AwareSensor {
                 label: "com.awareframework.ios.sensor.locations.sync.queue")
         }
 
+        observeAppLifecycle()
+
         if config.debug { print(LocationsSensor.TAG, "Location sensor is created.") }
     }
 
@@ -539,6 +680,7 @@ public class LocationsSensor: AwareSensor {
 
         if CONFIG.debug { print(LocationsSensor.TAG, "Start location services") }
         self.startLocationServices()
+        startFlushTimer()
 
         self.timer?.invalidate()
         self.timer = Timer.scheduledTimer(
@@ -575,6 +717,8 @@ public class LocationsSensor: AwareSensor {
             t.invalidate()
             self.timer = nil
         }
+        stopFlushTimer()
+        flushBufferedData()  // the rows still in the buffers
         postOnMain(name: .actionAwareLocationsStop, object: self)
     }
 
@@ -611,11 +755,16 @@ public class LocationsSensor: AwareSensor {
             }
         }
 
-        dbEngine?.startSync(makeSyncConfig(LocationsData.databaseTableName))
-        visitEngine?.startSync(makeSyncConfig(VisitData.databaseTableName))
-        geofenceEngine?.startSync(makeSyncConfig(GeofenceData.databaseTableName))
-        headingEngine?.startSync(makeSyncConfig(HeadingData.databaseTableName))
-        eventEngine?.startSync(makeSyncConfig(LocationEventData.databaseTableName))
+        // Write the buffered locations and headings first so they are uploaded too
+        flushBufferedData {
+            DispatchQueue.main.async { [self] in
+                dbEngine?.startSync(makeSyncConfig(LocationsData.databaseTableName))
+                visitEngine?.startSync(makeSyncConfig(VisitData.databaseTableName))
+                geofenceEngine?.startSync(makeSyncConfig(GeofenceData.databaseTableName))
+                headingEngine?.startSync(makeSyncConfig(HeadingData.databaseTableName))
+                eventEngine?.startSync(makeSyncConfig(LocationEventData.databaseTableName))
+            }
+        }
     }
 
     public override func set(label: String) {
@@ -923,7 +1072,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
                 observer.onLocationChanged(data: data)
             }
         }
-        save(dataArray, to: dbEngine)
+        saveBuffered(dataArray, to: dbEngine)
         if let location = locations.last {
             self.lastSavedLocation = location
         }
@@ -1015,7 +1164,7 @@ extension LocationsSensor: CLLocationManagerDelegate {
             name: .actionAwareLocationsHeadingChanged,
             object: self,
             userInfo: [LocationsSensor.EXTRA_LABEL: newHeading])
-        save([data], to: headingEngine)
+        saveBuffered([data], to: headingEngine)
         if self.CONFIG.debug { print(data) }
     }
 
