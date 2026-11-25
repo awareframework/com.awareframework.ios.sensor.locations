@@ -19,6 +19,17 @@ private final class RecordingEngine: Engine {
     }
 }
 
+/// Records the locations the sensor saves
+private final class RecordingObserver: LocationsObserver {
+    let onLocation: (LocationsData) -> Void
+    init(_ onLocation: @escaping (LocationsData) -> Void) { self.onLocation = onLocation }
+    func onLocationChanged(data: LocationsData) { onLocation(data) }
+    func onExitRegion(data: GeofenceData) {}
+    func onEnterRegion(data: GeofenceData) {}
+    func onVisit(data: VisitData) {}
+    func onHeadingChanged(data: HeadingData) {}
+}
+
 class Tests: XCTestCase {
 
     func testControllers() {
@@ -60,7 +71,7 @@ class Tests: XCTestCase {
         XCTAssertEqual(sensor.CONFIG.sampleIntervalSeconds, 180)
         XCTAssertEqual(sensor.CONFIG.minGpsAccuracy, 100)
         XCTAssertEqual(sensor.CONFIG.expirationTime, 300)
-        XCTAssertEqual(sensor.CONFIG.saveAll, true)
+        XCTAssertEqual(sensor.CONFIG.saveAll, false)
         XCTAssertEqual(sensor.CONFIG.statusLocationVisit, true)
         XCTAssertEqual(sensor.CONFIG.statusHeading, false)
         XCTAssertEqual(sensor.CONFIG.headingFilterDegrees, 10)
@@ -77,12 +88,15 @@ class Tests: XCTestCase {
             config.headingFilterDegrees = -10
             config.headingFilterDegrees = 361
             config.headingFilterSeconds = -1
+            config.distanceFilter = -1
+            config.distanceFilter = .infinity
         })
         XCTAssertEqual(sensor.CONFIG.sampleIntervalSeconds,   180)
         XCTAssertEqual(sensor.CONFIG.minGpsAccuracy, 100)
         XCTAssertEqual(sensor.CONFIG.expirationTime, 300)
         XCTAssertEqual(sensor.CONFIG.headingFilterDegrees, 10)
         XCTAssertEqual(sensor.CONFIG.headingFilterSeconds, 1)
+        XCTAssertEqual(sensor.CONFIG.distanceFilter, 0)
 
         // apply closure
         let statusGps          = false
@@ -94,7 +108,7 @@ class Tests: XCTestCase {
         let statusHeading = true
         let headingFilterDegrees: CLLocationDegrees = 25
         let headingFilterSeconds: TimeInterval = 2.5
-        let distanceFilter: Double = 10
+        let distanceFilter: Double = 25
         let statusSignificantLocationChanges = false
 
         sensor = LocationsSensor(LocationsSensor.Config().apply { config in
@@ -328,7 +342,7 @@ class Tests: XCTestCase {
 
     /// Locations are saved off the main thread, in order; the notification is still posted on the main thread
     func testLocationsAreSavedOffMainAndNotifiedOnMain() {
-        let sensor = LocationsSensor()
+        let sensor = LocationsSensor(LocationsSensor.Config().apply { $0.saveAll = true })
         let engine = RecordingEngine()
         sensor.dbEngine = engine
 
@@ -358,6 +372,82 @@ class Tests: XCTestCase {
         XCTAssertEqual(notifiedOnMain, [true, true], "notifications on the main thread")
         XCTAssertEqual(sensor.LAST_DATA?.coordinate.latitude, locations[4].coordinate.latitude)
         NotificationCenter.default.removeObserver(token)
+    }
+
+    /// Locations about `meters` apart, northwards from (35, 139)
+    private func track(_ meters: [Double]) -> [CLLocation] {
+        meters.map { CLLocation(latitude: 35.0 + $0 / 111_195, longitude: 139.0) }
+    }
+
+    private func savedLatitudes(_ config: LocationsSensor.Config, updates: [[CLLocation]]) -> [Double] {
+        let sensor = LocationsSensor(config)
+        sensor.dbEngine = RecordingEngine()
+        var saved: [Double] = []
+        let observer = RecordingObserver { saved.append($0.latitude) }
+        sensor.CONFIG.sensorObserver = observer
+        for update in updates {
+            sensor.locationManager(sensor.locationManager, didUpdateLocations: update)
+        }
+        sensor.waitForPendingSaves()
+        return saved
+    }
+
+    /// saveAll = true: every location
+    func testSaveAllSavesEveryLocation() {
+        let points = track([0, 5, 10, 150, 160])
+        let saved = savedLatitudes(LocationsSensor.Config().apply { $0.saveAll = true },
+                                   updates: points.map { [$0] })
+        XCTAssertEqual(saved.count, 5)
+    }
+
+    /// saveAll = false: the first location, then only moves of minGpsAccuracy from the last saved one
+    func testMovesOfMinGpsAccuracyAreSaved() {
+        let points = track([0, 30, 99, 120, 150, 230, 240])
+        let saved = savedLatitudes(LocationsSensor.Config().apply { $0.minGpsAccuracy = 100 },
+                                   updates: points.map { [$0] })
+        // 0 (first), 120 (120 m from 0), 230 (110 m from 120)
+        XCTAssertEqual(saved, [points[0], points[3], points[5]].map(\.coordinate.latitude))
+    }
+
+    /// The distance filter, when set, is the threshold instead of minGpsAccuracy
+    func testDistanceFilterTakesPrecedence() {
+        let points = track([0, 30, 99, 120, 150, 230, 240])
+        let config = LocationsSensor.Config().apply {
+            $0.minGpsAccuracy = 100
+            $0.distanceFilter = 50
+        }
+        XCTAssertEqual(LocationsSensor(config).saveDistanceThreshold, 50)
+        let saved = savedLatitudes(config, updates: points.map { [$0] })
+        // 0, 99 (99 m from 0), 150 (51 m), 230 (80 m)
+        XCTAssertEqual(saved, [points[0], points[2], points[4], points[5]].map(\.coordinate.latitude))
+    }
+
+    /// Several locations in one update are checked one by one
+    func testLocationsOfOneUpdateAreCheckedInOrder() {
+        let points = track([0, 60, 110, 170, 230])
+        let saved = savedLatitudes(LocationsSensor.Config().apply { $0.minGpsAccuracy = 100 },
+                                   updates: [points])
+        // 0, 110 (110 m from 0), 230 (120 m from 110)
+        XCTAssertEqual(saved, [points[0], points[2], points[4]].map(\.coordinate.latitude))
+    }
+
+    /// The distance filter can be changed while the sensor runs: Core Location and the save threshold
+    func testSetDistanceFilter() {
+        let sensor = LocationsSensor(LocationsSensor.Config().apply { $0.distanceFilter = 10 })
+        XCTAssertEqual(sensor.locationManager.distanceFilter, 10)
+        XCTAssertEqual(sensor.saveDistanceThreshold, 10)
+
+        sensor.setDistanceFilter(250)
+        XCTAssertEqual(sensor.CONFIG.distanceFilter, 250)
+        XCTAssertEqual(sensor.locationManager.distanceFilter, 250)
+        XCTAssertEqual(sensor.saveDistanceThreshold, 250)
+
+        sensor.setDistanceFilter(-5)   // ignored
+        XCTAssertEqual(sensor.locationManager.distanceFilter, 250)
+
+        sensor.setDistanceFilter(0)    // off: Core Location default, minGpsAccuracy for saving
+        XCTAssertEqual(sensor.locationManager.distanceFilter, kCLDistanceFilterNone)
+        XCTAssertEqual(sensor.saveDistanceThreshold, sensor.CONFIG.minGpsAccuracy)
     }
 
     func testSyncModule() throws {
