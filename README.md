@@ -37,9 +37,9 @@ Class to hold the configuration of the sensor.
 + `sampleIntervalSeconds: Double`: How often to check the location, in seconds. By default, every 180 seconds. (default = `180`)
 + `minGpsAccuracy: Double`: The target GPS accuracy, in meters. When `accuracy` is `nil`, it selects `CLLocationManager.desiredAccuracy` (`0` = best for navigation, ≤ 5 = best, ≤ 25 = ten meters, ≤ 100 = hundred meters, ≤ 1000 = kilometer, otherwise three kilometers). When `saveAll` is `false`, it is also the minimum distance, in meters, from the last saved location for a new location to be saved. Negative values are ignored. (default = `100`)
 + `accuracy: CLLocationAccuracy?`: Sets `CLLocationManager.desiredAccuracy` directly (e.g. `kCLLocationAccuracyBest`). When set, it overrides the accuracy derived from `minGpsAccuracy`. (default = `nil`)
-+ `distanceFilter: Double`: The minimum distance, in meters, before Core Location sends another standard location update. Set `0` to disable distance filtering. (default = `0`)
++ `distanceFilter: Double`: The minimum distance, in meters, before Core Location sends another standard location update. With `saveAll = false` it is also the distance from the last saved location after which a location is saved (instead of `minGpsAccuracy`). Set `0` to disable distance filtering (`kCLDistanceFilterNone`, the Core Location default). Negative values are ignored. (default = `0`)
 + `expirationTime: Int64`: the amount of elapsed time, in seconds, until the location is considered outdated. By default, 300 seconds. (default = `300`)
-+ `saveAll: Bool`: Whether to save all the location updates or not. (default = `true`)
++ `saveAll: Bool`: Whether to save all the location updates or not. When `false`, a location is saved only after a move of `distanceFilter` (when set) or `minGpsAccuracy` meters from the last saved one. (default = `false`)
 + `statusGps: Bool`: Whether to use continuous GPS location tracking via `startUpdatingLocation`. (default = `true`)
 + `statusLocationVisit: Bool`: Whether to monitor visits (`startMonitoringVisits`). Visits are saved to the `ios_visit` table, with a reverse-geocoded address when available. (default = `true`)
 + `statusHeading: Bool`: Whether to record compass heading updates (`startUpdatingHeading`). Headings are saved to the `ios_heading` table. (default = `false`)
@@ -55,6 +55,10 @@ Class to hold the configuration of the sensor.
 + `dbType: DatabaseType`: Which db engine to use for saving data. (default = `.none`)
 + `dbPath: String`: Path of the database. (default = `"aware_locations"`)
 + `dbHost: String?`: Host for syncing the database. (default = `nil`)
+
+`setDistanceFilter(_:)` changes the distance filter while the sensor runs (Core Location and the save threshold use it at once).
+
+With `saveAll = true` every location Core Location reports is saved. With `saveAll = false` (the default), the first location is saved, then a location only when it is at least `distanceFilter` meters (when set) or `minGpsAccuracy` meters (otherwise) from the last saved one. The periodic save every `sampleIntervalSeconds` is not affected.
 
 The first heading after starting the sensor is saved immediately. Later updates received inside `headingFilterSeconds` are coalesced, and only the latest pending heading is saved at the end of the interval. The original heading measurement timestamp is preserved.
 

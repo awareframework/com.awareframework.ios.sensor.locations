@@ -291,6 +291,20 @@ public class LocationsSensor: AwareSensor {
                 }
             }
         }
+        /// Core Location reports a new location only after the device moved this far (meters).
+        /// 0: every update (`kCLDistanceFilterNone`, the default of Core Location). With
+        /// `saveAll = false`, a location is saved after a move of this distance when it is set
+        /// (instead of `minGpsAccuracy`).
+        public var distanceFilter: CLLocationDistance = 0 {
+            didSet {
+                if !distanceFilter.isFinite || distanceFilter < 0 {
+                    print(
+                        "[LocationsSensor][Illegal Parameter] The 'distanceFilter' value has to be greater than or equal to 0. ",
+                        "This parameter (\(distanceFilter)) is ignored.")
+                    distanceFilter = oldValue
+                }
+            }
+        }
         public var minGpsAccuracy: Double = 100 {
             didSet {
                 if self.minGpsAccuracy < 0 {
@@ -313,12 +327,14 @@ public class LocationsSensor: AwareSensor {
             }
         }
 
-        public var saveAll = true
+        /// true: every location Core Location reports is saved. false: the first location, then a
+        /// location only after a move of `distanceFilter` (when set) or `minGpsAccuracy` meters from
+        /// the last saved one.
+        public var saveAll = false
 
         public var regions: [CLRegion] = [CLRegion]()
 
         public var accuracy: CLLocationAccuracy? = nil
-        public var distanceFilter: CLLocationDistance = 0
         public var statusSignificantLocationChanges = true
 
         // iOS does not provide the network based location service
@@ -463,6 +479,7 @@ public class LocationsSensor: AwareSensor {
 
         self.locationManager.delegate = self
         applyHeadingAngleFilter()
+        applyDistanceFilter()
 
         let makeEngine = { (tableName: String) -> Engine in
             Engine.Builder()
@@ -578,6 +595,7 @@ public class LocationsSensor: AwareSensor {
             DbSyncConfig().apply { c in
                 c.debug = baseConfig.debug
                 c.progressHandler = baseConfig.progressHandler
+                c.batchHandler = baseConfig.batchHandler
                 c.dispatchQueue = DispatchQueue(
                     label: "com.awareframework.ios.sensor.locations.sync.\(tableName)")
                 c.completionHandler = { status, error in
@@ -612,8 +630,7 @@ public class LocationsSensor: AwareSensor {
         locationManager.pausesLocationUpdatesAutomatically = false
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         locationManager.allowsBackgroundLocationUpdates = true
-        locationManager.distanceFilter =
-            CONFIG.distanceFilter == 0 ? kCLDistanceFilterNone : CONFIG.distanceFilter
+        applyDistanceFilter()
         // Configure and start the service.
         if #available(iOS 11.0, *) {
             locationManager.showsBackgroundLocationIndicator = false
@@ -685,6 +702,19 @@ public class LocationsSensor: AwareSensor {
             CONFIG.headingFilterDegrees == 0
             ? kCLHeadingFilterNone
             : CONFIG.headingFilterDegrees
+    }
+
+    /// Change the distance filter (meters; 0 turns it off) while the sensor runs: Core Location
+    /// reports locations, and with `saveAll = false` locations are saved, after moves of this
+    /// distance from now on. A negative or infinite value is ignored. Call it on the main thread.
+    public func setDistanceFilter(_ meters: CLLocationDistance) {
+        CONFIG.distanceFilter = meters   // validated by the config
+        applyDistanceFilter()
+    }
+
+    private func applyDistanceFilter() {
+        locationManager.distanceFilter =
+            CONFIG.distanceFilter == 0 ? kCLDistanceFilterNone : CONFIG.distanceFilter
     }
 
     func resetHeadingTimeFilter() {
@@ -829,22 +859,28 @@ extension LocationsSensor: CLLocationManagerDelegate {
             print(LocationsSensor.TAG, #function, locations.debugDescription)
         }
 
-        let shouldSaveInitialLocation = self.LAST_DATA == nil
         self.LAST_DATA = locations.last
 
-        if self.CONFIG.saveAll || shouldSaveInitialLocation {
+        if self.CONFIG.saveAll {
             self.saveLocations(locations, eventTime: nil)
             return
         }
 
+        // The first location, then only moves of `saveDistanceThreshold` from the last saved one
         let significantLocations = self.significantLocationsSinceLastSave(from: locations)
         if !significantLocations.isEmpty {
             self.saveLocations(significantLocations, eventTime: nil)
         }
     }
 
+    /// The distance a location has to be from the last saved one to be saved (`saveAll = false`):
+    /// `distanceFilter` when set, otherwise `minGpsAccuracy` (at least 1 m)
+    var saveDistanceThreshold: CLLocationDistance {
+        CONFIG.distanceFilter > 0 ? CONFIG.distanceFilter : max(CONFIG.minGpsAccuracy, 1)
+    }
+
     private func significantLocationsSinceLastSave(from locations: [CLLocation]) -> [CLLocation] {
-        let threshold = max(self.CONFIG.minGpsAccuracy, 1)
+        let threshold = saveDistanceThreshold
         var referenceLocation = self.lastSavedLocation
         var significantLocations: [CLLocation] = []
 
